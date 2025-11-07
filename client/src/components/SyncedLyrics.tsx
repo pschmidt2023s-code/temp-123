@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { usePlayer } from '@/store/usePlayer';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,8 +24,8 @@ interface SyncedLyricsProps {
 
 export function SyncedLyrics({ releaseId, className = '' }: SyncedLyricsProps) {
   const { currentTime, seek } = usePlayer();
-  const [currentLineIndex, setCurrentLineIndex] = useState(0);
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [currentLineIndex, setCurrentLineIndex] = useState(-1);
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const lyricsRef = useRef<HTMLDivElement>(null);
   const currentLineRef = useRef<HTMLDivElement>(null);
 
@@ -39,9 +39,9 @@ export function SyncedLyrics({ releaseId, className = '' }: SyncedLyricsProps) {
     enabled: !!releaseId,
   });
 
-  const timedLines: TimedLine[] = lyricsData?.timedLines 
-    ? JSON.parse(lyricsData.timedLines) 
-    : [];
+  const timedLines: TimedLine[] = useMemo(() => {
+    return lyricsData?.timedLines ? JSON.parse(lyricsData.timedLines) : [];
+  }, [lyricsData?.timedLines]);
 
   useEffect(() => {
     if (!timedLines.length) return;
@@ -68,7 +68,7 @@ export function SyncedLyrics({ releaseId, className = '' }: SyncedLyricsProps) {
                    (!nextWord || currentTimeMs < nextWord.startTime);
           }
         );
-        setCurrentWordIndex(wordIdx !== -1 ? wordIdx : 0);
+        setCurrentWordIndex(wordIdx !== -1 ? wordIdx : -1);
       }
     }
   }, [currentTime, timedLines]);
