@@ -6,33 +6,43 @@ import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@shared/schema';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
 export default function Pricing() {
   const [userId] = useState('demo-user');
-  const { subscription, subscribe, upgrade, isLoading } = useSubscription(userId);
+  const { subscription, isLoading } = useSubscription(userId);
   const { toast } = useToast();
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   const handleSubscribe = async (tier: SubscriptionTier) => {
     try {
-      if (subscription?.tier && subscription.tier !== 'free') {
-        await upgrade.mutateAsync(tier);
-        toast({
-          title: 'Abo aktualisiert',
-          description: `Dein Abo wurde auf ${SUBSCRIPTION_TIERS[tier].name} aktualisiert.`,
-        });
+      setCheckoutLoading(tier);
+
+      // Create Stripe Checkout Session
+      const response = await apiRequest('POST', '/api/create-checkout-session', {
+        tier,
+        userId,
+      });
+
+      const { url } = await response.json();
+
+      if (url) {
+        // Redirect to Stripe Checkout
+        window.location.href = url;
       } else {
-        await subscribe.mutateAsync(tier);
-        toast({
-          title: 'Abo aktiviert',
-          description: `Du hast ${SUBSCRIPTION_TIERS[tier].name} aktiviert!`,
-        });
+        throw new Error('No checkout URL returned');
       }
     } catch (error) {
+      console.error('Checkout error:', error);
       toast({
         title: 'Fehler',
-        description: 'Abo konnte nicht aktiviert werden.',
+        description: 'Zahlungsvorgang konnte nicht gestartet werden.',
         variant: 'destructive',
       });
+      setCheckoutLoading(null);
     }
   };
 
@@ -148,11 +158,11 @@ export default function Pricing() {
               <Button
                 className="w-full"
                 variant={popular ? 'default' : 'outline'}
-                disabled={isCurrentTier || subscribe.isPending || upgrade.isPending}
+                disabled={isCurrentTier || checkoutLoading === tier}
                 onClick={() => handleSubscribe(tier)}
                 data-testid={`button-subscribe-${tier}`}
               >
-                {isCurrentTier ? 'Aktueller Plan' : isUpgrade ? 'Upgrade' : 'Downgrade'}
+                {checkoutLoading === tier ? 'Wird geladen...' : isCurrentTier ? 'Aktueller Plan' : isUpgrade ? 'Jetzt upgraden' : 'Jetzt abschließen'}
               </Button>
             </Card>
           );
