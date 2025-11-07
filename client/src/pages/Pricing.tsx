@@ -1,9 +1,10 @@
-import { Check, Ticket } from '@phosphor-icons/react/dist/ssr';
+import { Check, Ticket, CreditCard } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@shared/schema';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
@@ -21,6 +22,8 @@ export default function Pricing() {
   const [couponCode, setCouponCode] = useState('');
   const [validatedCoupon, setValidatedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState('');
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -46,47 +49,70 @@ export default function Pricing() {
     }
   };
 
-  const handleSubscribe = async (tier: SubscriptionTier) => {
+  const initiateCheckout = (tier: SubscriptionTier) => {
+    setSelectedTier(tier);
+    setShowPaymentDialog(true);
+  };
+
+  const handleSubscribe = async (paymentMethod: 'stripe' | 'paypal') => {
+    if (!selectedTier) return;
+    
     try {
-      setCheckoutLoading(tier);
+      setCheckoutLoading(selectedTier);
+      setShowPaymentDialog(false);
 
       // Check if upgrade (existing subscription)
-      const isUpgrade = subscription && subscription.tier !== 'free' && subscription.tier !== tier;
+      const isUpgrade = subscription && subscription.tier !== 'free' && subscription.tier !== selectedTier;
 
-      // Create Stripe Checkout Session (supports both new subscriptions and upgrades)
-      const data = await apiRequest<{ success?: boolean; url?: string }>('POST', '/api/create-checkout-session', {
-        tier,
-        userId,
-        isUpgrade,
-        couponCode: validatedCoupon ? couponCode : undefined,
-      });
-
-      // If upgrade was successful (no redirect URL)
-      if (data.success && !data.url) {
-        toast({
-          title: 'Upgrade erfolgreich!',
-          description: `Dein Abo wurde auf ${tier.charAt(0).toUpperCase() + tier.slice(1)} aktualisiert. Die Differenz wurde anteilig berechnet.`,
+      if (paymentMethod === 'stripe') {
+        // Create Stripe Checkout Session
+        const data = await apiRequest<{ success?: boolean; url?: string }>('POST', '/api/create-checkout-session', {
+          tier: selectedTier,
+          userId,
+          isUpgrade,
+          couponCode: validatedCoupon ? couponCode : undefined,
         });
-        setCheckoutLoading(null);
-        // Reload page to update UI
-        setTimeout(() => window.location.reload(), 2000);
-        return;
-      }
 
-      // Otherwise redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
+        // If upgrade was successful (no redirect URL)
+        if (data.success && !data.url) {
+          toast({
+            title: 'Upgrade erfolgreich!',
+            description: `Dein Abo wurde auf ${selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} aktualisiert. Die Differenz wurde anteilig berechnet.`,
+          });
+          setCheckoutLoading(null);
+          setTimeout(() => window.location.reload(), 2000);
+          return;
+        }
+
+        // Otherwise redirect to Stripe Checkout
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL returned');
+        }
       } else {
-        throw new Error('No checkout URL returned');
+        // PayPal checkout
+        const data = await apiRequest<{ success?: boolean; approvalUrl?: string }>('POST', '/api/paypal/create-order', {
+          tier: selectedTier,
+          userId,
+          couponCode: validatedCoupon ? couponCode : undefined,
+        });
+
+        if (data.approvalUrl) {
+          window.location.href = data.approvalUrl;
+        } else {
+          throw new Error('No PayPal approval URL returned');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Checkout error:', error);
       toast({
         title: 'Fehler',
-        description: 'Zahlungsvorgang konnte nicht gestartet werden.',
+        description: error.message || 'Zahlungsvorgang konnte nicht gestartet werden.',
         variant: 'destructive',
       });
       setCheckoutLoading(null);
+      setShowPaymentDialog(false);
     }
   };
 
@@ -272,7 +298,7 @@ export default function Pricing() {
                 className="w-full"
                 variant={popular ? 'default' : 'outline'}
                 disabled={isCurrentTier || checkoutLoading === tier}
-                onClick={() => handleSubscribe(tier)}
+                onClick={() => initiateCheckout(tier)}
                 data-testid={`button-subscribe-${tier}`}
               >
                 {checkoutLoading === tier ? 'Wird geladen...' : isCurrentTier ? 'Aktueller Plan' : isUpgrade ? 'Jetzt upgraden' : 'Jetzt abschließen'}
@@ -290,6 +316,41 @@ export default function Pricing() {
           Alle Pläne können monatlich gekündigt werden. Keine versteckten Kosten.
         </p>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zahlungsmethode wählen</DialogTitle>
+            <DialogDescription>
+              Wähle deine bevorzugte Zahlungsmethode für {selectedTier ? SUBSCRIPTION_TIERS[selectedTier].name : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              className="w-full h-16 text-lg"
+              variant="outline"
+              onClick={() => handleSubscribe('stripe')}
+              disabled={checkoutLoading !== null}
+              data-testid="button-pay-stripe"
+            >
+              <CreditCard size={24} weight="bold" className="mr-3" />
+              Kreditkarte / Stripe
+            </Button>
+            <Button
+              className="w-full h-16 text-lg"
+              variant="outline"
+              onClick={() => handleSubscribe('paypal')}
+              disabled={checkoutLoading !== null}
+              data-testid="button-pay-paypal"
+            >
+              <svg className="mr-3" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .76-.64h8.462c1.656 0 3.13.326 4.13 1.14.926.753 1.393 1.897 1.393 3.402 0 2.653-1.09 4.52-3.24 5.553-1.12.537-2.55.806-4.252.806H9.906l-1.274 7.356a.641.641 0 0 1-.633.74h-.923zm9.652-14.27c-.853-.71-2.202-1.067-4.013-1.067H8.912a.515.515 0 0 0-.508.427l-.862 4.976h3.277c1.42 0 2.557-.222 3.383-.66 1.526-.806 2.298-2.203 2.298-4.152 0-1.253-.387-2.134-1.172-2.524z"/>
+              </svg>
+              PayPal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

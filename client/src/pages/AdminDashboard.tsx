@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple, Quotes } from '@phosphor-icons/react';
+import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple, Quotes, Users } from '@phosphor-icons/react';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Release, ArtistRegistrationLink, StreamingService, Lyrics, Coupon } from '@shared/schema';
 import { releaseTypeEnum } from '@shared/schema';
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
               Services
             </TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">
-              <Plus size={20} weight="bold" className="mr-2" />
+              <Users size={20} weight="bold" className="mr-2" />
               Benutzer
             </TabsTrigger>
           </TabsList>
@@ -336,6 +336,8 @@ function LyricsTab() {
 
 function UsersTab() {
   const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isSubDialogOpen, setIsSubDialogOpen] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/users'],
@@ -361,74 +363,231 @@ function UsersTab() {
     },
   });
 
+  const updateSubscription = useMutation({
+    mutationFn: async ({ userId, tier, status, endDate }: any) => {
+      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/subscription`, {
+        tier,
+        status,
+        endDate,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Abonnement aktualisiert",
+        description: "Das Benutzer-Abonnement wurde erfolgreich aktualisiert",
+      });
+      setIsSubDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Abonnement konnte nicht aktualisiert werden",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubscriptionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    updateSubscription.mutate({
+      userId: selectedUser.id,
+      tier: formData.get('tier') as string,
+      status: formData.get('status') as string,
+      endDate: formData.get('endDate') || null,
+    });
+  };
+
+  const getTierBadge = (tier: string) => {
+    const tierColors: Record<string, string> = {
+      free: 'bg-muted text-muted-foreground',
+      plus: 'bg-blue-500 text-white',
+      premium: 'bg-purple-500 text-white',
+      family: 'bg-primary text-primary-foreground',
+    };
+    const tierNames: Record<string, string> = {
+      free: 'Free',
+      plus: 'Plus',
+      premium: 'Premium',
+      family: 'Family',
+    };
+    return (
+      <Badge className={tierColors[tier] || tierColors.free}>
+        {tierNames[tier] || tier}
+      </Badge>
+    );
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Benutzer-Verwaltung</CardTitle>
-        <CardDescription>
-          Verwalte registrierte Benutzer und ihre Abonnements
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center text-muted-foreground py-8">
-            Lade Benutzer...
-          </div>
-        ) : users.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            Keine Benutzer gefunden
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Benutzername</TableHead>
-                <TableHead>E-Mail</TableHead>
-                <TableHead>Registriert</TableHead>
-                <TableHead>Letzter Login</TableHead>
-                <TableHead>2FA</TableHead>
-                <TableHead>Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user: any) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>{user.email || '—'}</TableCell>
-                  <TableCell>
-                    {user.createdAt ? format(new Date(user.createdAt), 'dd.MM.yyyy HH:mm') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {user.lastLoginAt ? format(new Date(user.lastLoginAt), 'dd.MM.yyyy HH:mm') : 'Nie'}
-                  </TableCell>
-                  <TableCell>
-                    {user.twoFactorEnabled ? (
-                      <span className="text-green-500">Aktiv</span>
-                    ) : (
-                      <span className="text-muted-foreground">Inaktiv</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm(`Benutzer "${user.username}" wirklich löschen?`)) {
-                          deleteUser.mutate(user.id);
-                        }
-                      }}
-                      data-testid={`button-delete-user-${user.id}`}
-                    >
-                      <Trash size={18} weight="bold" />
-                    </Button>
-                  </TableCell>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Benutzer-Verwaltung</CardTitle>
+          <CardDescription>
+            Verwalte registrierte Benutzer und ihre Abonnements
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              Lade Benutzer...
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              Keine Benutzer gefunden
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Benutzername</TableHead>
+                  <TableHead>E-Mail</TableHead>
+                  <TableHead>Abo</TableHead>
+                  <TableHead>Registriert</TableHead>
+                  <TableHead>2FA</TableHead>
+                  <TableHead>Aktionen</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {users.map((user: any) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email || '—'}</TableCell>
+                    <TableCell>
+                      {user.subscription ? getTierBadge(user.subscription.tier) : getTierBadge('free')}
+                    </TableCell>
+                    <TableCell>
+                      {user.createdAt ? format(new Date(user.createdAt), 'dd.MM.yyyy') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {user.twoFactorEnabled ? (
+                        <span className="text-green-500 text-xs">✓</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setIsSubDialogOpen(true);
+                          }}
+                          data-testid={`button-edit-subscription-${user.id}`}
+                          title="Abo zuweisen"
+                        >
+                          <Ticket size={18} weight="bold" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (confirm(`Benutzer "${user.username}" wirklich löschen?`)) {
+                              deleteUser.mutate(user.id);
+                            }
+                          }}
+                          data-testid={`button-delete-user-${user.id}`}
+                          title="Benutzer löschen"
+                        >
+                          <Trash size={18} weight="bold" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isSubDialogOpen} onOpenChange={setIsSubDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Abonnement zuweisen</DialogTitle>
+            <DialogDescription>
+              Weise {selectedUser?.username} ein Abonnement zu
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubscriptionSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tier">Abo-Stufe</Label>
+              <Select
+                name="tier"
+                defaultValue={selectedUser?.subscription?.tier || 'free'}
+                required
+              >
+                <SelectTrigger data-testid="select-tier">
+                  <SelectValue placeholder="Stufe wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="plus">Plus (4,99€)</SelectItem>
+                  <SelectItem value="premium">Premium (9,99€)</SelectItem>
+                  <SelectItem value="family">Family (14,99€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                name="status"
+                defaultValue={selectedUser?.subscription?.status || 'active'}
+                required
+              >
+                <SelectTrigger data-testid="select-status">
+                  <SelectValue placeholder="Status wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Aktiv</SelectItem>
+                  <SelectItem value="cancelled">Gekündigt</SelectItem>
+                  <SelectItem value="expired">Abgelaufen</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Ablaufdatum (optional)</Label>
+              <Input
+                type="date"
+                name="endDate"
+                data-testid="input-end-date"
+                defaultValue={
+                  selectedUser?.subscription?.endDate
+                    ? new Date(selectedUser.subscription.endDate).toISOString().split('T')[0]
+                    : ''
+                }
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsSubDialogOpen(false)}
+                data-testid="button-cancel-subscription"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateSubscription.isPending}
+                data-testid="button-save-subscription"
+              >
+                {updateSubscription.isPending ? 'Speichern...' : 'Speichern'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

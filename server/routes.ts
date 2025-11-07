@@ -115,7 +115,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const demoUser = await storage.getUser('demo-user');
     if (!demoUser) {
       await storage.createUser({
-        id: 'demo-user',
         username: 'Demo User',
         email: 'demo@glassbeats.app',
       });
@@ -564,10 +563,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (couponId && couponCode) {
               const coupon = await storage.getCouponByCode(couponCode);
               if (coupon) {
-                await storage.recordCouponUsage({
-                  couponId,
-                  userId,
-                  subscriptionTier: tier,
+                // Increment usage count
+                await storage.updateCoupon(coupon.id, {
+                  usedCount: (coupon.usedCount || 0) + 1,
                 });
                 
                 // Update coupon used count
@@ -1134,10 +1132,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      // Don't send password hashes to client
-      const safeUsers = users.map(({ passwordHash, twoFactorSecret, ...user }) => user);
-      res.json(safeUsers);
+      // Fetch subscriptions for all users
+      const usersWithSubscriptions = await Promise.all(
+        users.map(async (user) => {
+          const subscription = await storage.getUserSubscription(user.id);
+          const { passwordHash, twoFactorSecret, ...safeUser } = user;
+          return {
+            ...safeUser,
+            subscription: subscription || null,
+          };
+        })
+      );
+      res.json(usersWithSubscriptions);
     } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/subscription', requireAdminAuth, async (req, res) => {
+    try {
+      const { tier, status, endDate } = req.body;
+      const user = await storage.getUser(req.params.id);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Get or create subscription
+      let subscription = await storage.getUserSubscription(user.id);
+      
+      if (!subscription) {
+        // Create new subscription
+        subscription = await storage.createSubscription({
+          userId: user.id,
+          tier: tier || 'free',
+          status: status || 'active',
+          autoRenew: false, // Admin-assigned subscriptions don't auto-renew
+        });
+      } else {
+        // Update existing subscription
+        const updateData: any = {};
+        if (tier) updateData.tier = tier;
+        if (status) updateData.status = status;
+        if (endDate) updateData.endDate = new Date(endDate);
+        
+        subscription = await storage.updateSubscription(subscription.id, updateData);
+      }
+
+      res.json({ success: true, subscription });
+    } catch (error) {
+      console.error('Subscription update error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
