@@ -5,13 +5,44 @@ import { Play, Heart, DotsThree } from '@phosphor-icons/react/dist/ssr';
 import { demoTracks } from '@/lib/demo-data';
 import { usePlayer } from '@/store/usePlayer';
 import { musicKit } from '@/lib/musickit';
+import { useMKCatalog } from '@/hooks/useMKCatalog';
+import { useState, useEffect } from 'react';
+import type { MKMediaItem } from '@shared/schema';
 
 export default function Album() {
   const [, params] = useRoute('/album/:id');
   const { setQueue, queue, currentIndex, isPlaying } = usePlayer();
+  const { getAlbum } = useMKCatalog();
+  const [albumData, setAlbumData] = useState<MKMediaItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const albumTracks = demoTracks.slice(0, 8);
-  const album = albumTracks[0];
+  useEffect(() => {
+    if (params?.id) {
+      setIsLoading(true);
+      getAlbum(params.id)
+        .then((data) => {
+          setAlbumData(data);
+        })
+        .catch((error) => {
+          console.error('Failed to load album:', error);
+          setAlbumData(null);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [params?.id, getAlbum]);
+
+  const albumTracks = (albumData as any)?.relationships?.tracks?.data || demoTracks.slice(0, 8);
+  const album = albumData || demoTracks[0];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">Lädt Album...</p>
+      </div>
+    );
+  }
 
   const handlePlayAll = () => {
     setQueue(albumTracks, 0);
@@ -19,7 +50,7 @@ export default function Album() {
   };
 
   const totalDuration = albumTracks.reduce(
-    (acc, track) => acc + (track.attributes.durationInMillis || 0),
+    (acc: number, track: any) => acc + (track.attributes.durationInMillis || 0),
     0
   );
 
@@ -28,9 +59,13 @@ export default function Album() {
     return `${minutes} Min.`;
   };
 
-  const artwork = album?.attributes.artwork
-    ? musicKit.getArtworkURL(album.attributes.artwork, 232)
+  const artwork = (albumData?.attributes?.artwork || album?.attributes.artwork)
+    ? musicKit.getArtworkURL(albumData?.attributes?.artwork || album?.attributes.artwork, 232)
     : '';
+
+  const albumName = albumData?.attributes?.name || album?.attributes?.albumName || album?.attributes?.name || 'Album';
+  const artistName = albumData?.attributes?.artistName || album?.attributes?.artistName || 'Unknown Artist';
+  const releaseDate = albumData?.attributes?.releaseDate || album?.attributes?.releaseDate || '';
 
   return (
     <div className="min-h-screen pb-32">
@@ -40,7 +75,7 @@ export default function Album() {
           {artwork && (
             <img
               src={artwork}
-              alt={album?.attributes.name}
+              alt={albumName}
               className="w-[232px] h-[232px] rounded-lg shadow-card"
               data-testid="img-album-cover"
             />
@@ -50,14 +85,14 @@ export default function Album() {
         <div className="flex flex-col justify-end">
           <p className="text-sm text-muted-foreground mb-2">Album</p>
           <h1 className="text-5xl font-bold mb-4" data-testid="text-album-title">
-            {album?.attributes.albumName || 'Album'}
+            {albumName}
           </h1>
           <div className="flex items-center gap-2 text-sm">
             <span className="font-medium" data-testid="text-album-artist">
-              {album?.attributes.artistName}
+              {artistName}
             </span>
             <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">{album?.attributes.releaseDate}</span>
+            <span className="text-muted-foreground">{releaseDate}</span>
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground" data-testid="text-album-info">
               {albumTracks.length} Songs, {formatTotalDuration(totalDuration)}
@@ -97,7 +132,7 @@ export default function Album() {
           <div className="text-right">⏱</div>
         </div>
 
-        {albumTracks.map((track, index) => {
+        {albumTracks.map((track: any, index: number) => {
           const isCurrentTrack =
             queue[currentIndex]?.id === track.id && isPlaying;
           return (

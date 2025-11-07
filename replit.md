@@ -90,7 +90,7 @@ server/
 ## Features
 
 ### Implementiert ✅
-- Pixel-perfekte Spotify UI mit exakten Maßen
+- Pixel-perfekte Spotify UI mit exakten inline-style Maßen (241px, 64px, 90px)
 - Glassmorphism-Effekte auf allen Elementen
 - Vollständige Navigation (7 Seiten)
 - Player mit allen Controls (Play, Pause, Next, Previous, Shuffle, Repeat)
@@ -99,8 +99,12 @@ server/
 - Track-Listen mit Spalten
 - Responsive Design
 - Deutsche UI (komplett)
-- Demo-Daten für Testing
-- MusicKit Integration vorbereitet
+- **MusicKit Catalog Integration**: Search, Album, Playlist, Artist pages nutzen Live-Daten
+- **Apple Music Authentifizierung**: Login/Logout UI im TopBar mit Status-Badge
+- **Timed Lyrics Overlay**: Vollbild-Lyrics mit Wort-für-Wort-Synchronisation
+- MusicKit Hooks vollständig implementiert (useMKAuth, useMKCatalog, useMKPlayback, useMKLyrics)
+- Backend Playlist-Management mit React Query
+- PWA Support (Manifest + Service Worker)
 
 ### Player Features
 - Queue Management

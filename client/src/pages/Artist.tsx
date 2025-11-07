@@ -7,37 +7,74 @@ import { demoTracks, demoAlbums } from '@/lib/demo-data';
 import { usePlayer } from '@/store/usePlayer';
 import { musicKit } from '@/lib/musickit';
 import { useLocation } from 'wouter';
+import { useMKCatalog } from '@/hooks/useMKCatalog';
+import { useState, useEffect } from 'react';
+import type { MKMediaItem } from '@shared/schema';
 
 export default function Artist() {
   const [, params] = useRoute('/artist/:id');
   const [, setLocation] = useLocation();
   const { setQueue, queue, currentIndex, isPlaying } = usePlayer();
+  const { getArtist } = useMKCatalog();
+  const [artistData, setArtistData] = useState<MKMediaItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const artistTracks = demoTracks.slice(0, 5);
-  const artistAlbums = demoAlbums.slice(0, 6);
-  const artist = artistTracks[0];
+  useEffect(() => {
+    if (params?.id) {
+      setIsLoading(true);
+      getArtist(params.id)
+        .then((data) => {
+          setArtistData(data);
+        })
+        .catch((error) => {
+          console.error('Failed to load artist:', error);
+          setArtistData(null);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [params?.id, getArtist]);
+
+  const artistTracks = (artistData as any)?.views?.['top-songs']?.data || demoTracks.slice(0, 5);
+  const artistAlbums = (artistData as any)?.views?.['latest-release']?.data || demoAlbums.slice(0, 6);
+  const artist = artistData || demoTracks[0];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">Lädt Künstler...</p>
+      </div>
+    );
+  }
 
   const handlePlayAll = () => {
     setQueue(artistTracks, 0);
     musicKit.play(artistTracks[0]);
   };
 
+  const heroImage = artistData?.attributes?.artwork
+    ? musicKit.getArtworkURL(artistData.attributes.artwork, 1200)
+    : 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&h=340&fit=crop';
+
   return (
     <div className="min-h-screen pb-32">
       {/* Artist Hero */}
       <div className="relative h-[340px] rounded-lg overflow-hidden mb-8 glass">
         <img
-          src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&h=340&fit=crop"
-          alt={artist?.attributes.artistName}
+          src={heroImage}
+          alt={artistData?.attributes?.name || artist?.attributes.artistName}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         <div className="absolute bottom-8 left-8">
           <p className="text-sm text-muted-foreground mb-2">Künstler</p>
           <h1 className="text-6xl font-bold mb-4" data-testid="text-artist-name">
-            {artist?.attributes.artistName}
+            {artistData?.attributes?.name || artist?.attributes.artistName}
           </h1>
-          <p className="text-muted-foreground">2,5 Mio. monatliche Hörer</p>
+          <p className="text-muted-foreground">
+            {(artistData as any)?.attributes?.editorialNotes?.standard || '2,5 Mio. monatliche Hörer'}
+          </p>
         </div>
       </div>
 
@@ -59,7 +96,7 @@ export default function Artist() {
           Beliebte Titel
         </h2>
         <div className="space-y-1">
-          {artistTracks.map((track, index) => {
+          {artistTracks.map((track: any, index: number) => {
             const isCurrentTrack =
               queue[currentIndex]?.id === track.id && isPlaying;
             return (
@@ -80,7 +117,7 @@ export default function Artist() {
           Diskografie
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {artistAlbums.map((album) => (
+          {artistAlbums.map((album: any) => (
             <Card
               key={album.id}
               item={album}

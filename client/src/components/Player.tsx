@@ -16,6 +16,7 @@ import { Slider } from '@/components/ui/slider';
 import { useState, useEffect } from 'react';
 import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
+import { LyricsOverlay } from './LyricsOverlay';
 
 export function Player() {
   const {
@@ -118,11 +119,19 @@ export function Player() {
     : '';
 
   return (
-    <footer 
-      className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-4"
-      style={{ height: '90px' }}
-    >
-      <div className="h-full flex items-center justify-between gap-4">
+    <>
+      {showLyrics && currentTrack && (
+        <LyricsOverlay
+          songId={currentTrack.id}
+          onClose={() => setShowLyrics(false)}
+        />
+      )}
+      
+      <footer 
+        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-4"
+        style={{ height: '90px' }}
+      >
+        <div className="h-full flex items-center justify-between gap-4">
         {/* Left: Current Track Info */}
         <div className="flex items-center gap-4 min-w-[180px] w-[30%]">
           {artwork && (
@@ -260,6 +269,7 @@ export function Player() {
           </div>
         </div>
       </div>
-    </footer>
+      </footer>
+    </>
   );
 }
