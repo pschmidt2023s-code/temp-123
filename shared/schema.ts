@@ -33,10 +33,10 @@ export type Playlist = typeof playlists.$inferSelect;
 
 export interface MKMediaItem {
   id: string;
-  type: 'songs' | 'albums' | 'playlists' | 'stations';
+  type: 'songs' | 'albums' | 'playlists' | 'stations' | 'artists' | 'music-videos';
   attributes: {
     name: string;
-    artistName: string;
+    artistName?: string;
     albumName?: string;
     artwork?: {
       url: string;
@@ -48,6 +48,7 @@ export interface MKMediaItem {
     releaseDate?: string;
     trackNumber?: number;
   };
+  relationships?: any;
 }
 
 export interface PlayerState {

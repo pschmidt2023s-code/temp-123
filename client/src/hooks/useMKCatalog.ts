@@ -93,11 +93,60 @@ export function useMKCatalog() {
     }
   };
 
+  const getRecentlyPlayed = async (): Promise<MKMediaItem[]> => {
+    const mk = musicKit.getInstance();
+    if (!mk) {
+      return [];
+    }
+
+    try {
+      const response = await mk.api.music('/v1/me/recent/played', {});
+      return response.data || [];
+    } catch (error) {
+      console.error('Failed to fetch recently played:', error);
+      return [];
+    }
+  };
+
+  const getRecommendations = async (): Promise<MKMediaItem[]> => {
+    const mk = musicKit.getInstance();
+    if (!mk) {
+      return [];
+    }
+
+    try {
+      const response = await mk.api.music('/v1/me/recommendations', {});
+      const recommendations = response.data?.[0]?.relationships?.contents?.data || [];
+      return recommendations.slice(0, 6);
+    } catch (error) {
+      console.error('Failed to fetch recommendations:', error);
+      return [];
+    }
+  };
+
+  const getNewReleases = async (): Promise<MKMediaItem[]> => {
+    const mk = musicKit.getInstance();
+    if (!mk) {
+      return [];
+    }
+
+    try {
+      const response = await mk.api.music('/v1/catalog/de/new-releases', {});
+      return response.data?.[0]?.relationships?.albums?.data || [];
+    } catch (error) {
+      console.error('Failed to fetch new releases:', error);
+      return [];
+    }
+  };
+
   return {
     searchCatalog,
     getAlbum,
     getPlaylist,
     getArtist,
     createStation,
+    getRecentlyPlayed,
+    getRecommendations,
+    getNewReleases,
   };
 }
