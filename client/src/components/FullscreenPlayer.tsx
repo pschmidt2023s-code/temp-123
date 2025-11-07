@@ -214,9 +214,9 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 pointer-events-none" />
 
         {/* Content */}
-        <div className="relative flex flex-col h-full p-6 md:p-8 pt-8">
+        <div className="relative flex flex-col h-full p-6 md:p-8 pt-8 z-10">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 relative z-20">
             <Button
               variant="ghost"
               size="icon"
@@ -307,7 +307,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
           </div>
 
         {/* Album Art - 4x4 Format */}
-        <div className="flex-1 flex items-center justify-center mb-8 px-4">
+        <div className="flex-1 flex items-center justify-center mb-8 px-4 relative z-10">
           <div
             className="relative transition-transform duration-500 w-full max-w-sm md:max-w-md"
             style={{
@@ -331,7 +331,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
         </div>
 
         {/* Track Info */}
-        <div className="mb-6 text-center">
+        <div className="mb-6 text-center relative z-10">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 truncate">
             {currentTrack.attributes.name}
           </h1>
@@ -346,7 +346,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-8 px-2">
+        <div className="mb-8 px-2 relative z-10">
           <Slider
             value={[currentTime]}
             max={duration}
@@ -361,7 +361,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between max-w-sm mx-auto mb-6 px-4">
+        <div className="flex items-center justify-between max-w-sm mx-auto mb-6 px-4 relative z-20">
           <Button
             variant="ghost"
             size="icon"

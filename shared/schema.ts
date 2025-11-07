@@ -173,6 +173,29 @@ export const lyrics = pgTable("lyrics", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  discountType: text("discount_type").notNull(), // 'percentage', 'fixed'
+  discountValue: integer("discount_value").notNull(), // percentage (1-100) or cents
+  maxUses: integer("max_uses").default(1),
+  usedCount: integer("used_count").default(0),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  applicableTiers: text("applicable_tiers").array(), // ['plus', 'premium', 'family'] or null for all
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => adminUsers.id),
+});
+
+export const couponUsages = pgTable("coupon_usages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  couponId: varchar("coupon_id").references(() => coupons.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  subscriptionId: varchar("subscription_id").references(() => subscriptions.id),
+  usedAt: timestamp("used_at").defaultNow(),
+});
+
 export const streamingEvents = pgTable("streaming_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   releaseId: varchar("release_id").references(() => releases.id).notNull(),
@@ -427,3 +450,13 @@ export interface LyricLine {
     endTime: number;
   }>;
 }
+
+// Coupon Types
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+export type CouponUsage = typeof couponUsages.$inferSelect;
+export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
+
+// Coupon Schemas
+export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
+export const insertCouponUsageSchema = createInsertSchema(couponUsages).omit({ id: true, usedAt: true });
