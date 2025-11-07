@@ -60,9 +60,10 @@ client/
 │   ├── components/
 │   │   ├── ui/              # Shadcn UI Komponenten
 │   │   ├── Sidebar.tsx      # 241px fixed Desktop Navigation
-│   │   ├── MobileNav.tsx    # Bottom Navigation für Mobile
+│   │   ├── MobileNav.tsx    # Bottom Navigation für Mobile (bottom: 90px)
 │   │   ├── TopBar.tsx       # 64px Search & User Menu
-│   │   ├── Player.tsx       # 90px Bottom Player
+│   │   ├── Player.tsx       # 90px Bottom Player (React.memo optimiert)
+│   │   ├── FullscreenPlayer.tsx  # Fullscreen Player mit animierten Album-Farben
 │   │   ├── Card.tsx         # 200x200px (Desktop) / 132x132px (Mobile) Cards
 │   │   └── TrackRow.tsx     # Track List Row
 │   ├── pages/
@@ -101,10 +102,11 @@ server/
 
 #### Core UI & Design
 - Pixel-perfekte Spotify UI mit exakten inline-style Maßen (241px, 64px, 90px)
-- Glassmorphism-Effekte auf allen Elementen
+- Glassmorphism-Effekte auf allen Elementen mit backdrop-blur (GPU-beschleunigt)
 - Vollständige Navigation (8 Seiten inkl. Pricing & Live Rooms)
 - Deutsche UI (komplett)
-- **Responsive Mobile Design**: Bottom Navigation, optimierte Card-Größen (132×132px), Touch-optimierte Controls
+- **Responsive Mobile Design**: Bottom Navigation (bündig über Player bei bottom: 90px), optimierte Card-Größen (132×132px), Touch-optimierte Controls
+- **Performance-Optimiert**: React.memo für Player, requestAnimationFrame für Animationen, backdrop-blur für GPU-Beschleunigung
 
 #### Player & Playback
 - Player mit allen Controls (Play, Pause, Next, Previous, Shuffle, Repeat)
@@ -112,6 +114,12 @@ server/
 - Queue Management
 - Shuffle & Repeat Modes
 - Current Time & Duration Display mit Timer-Synchronisation
+- **Fullscreen Player** ✨: Großer Bildschirm-füllender Player
+  - Dynamische Farbextraktion aus Album-Covers (Canvas API)
+  - Animierte Hintergrund-Gradients mit Album-Farben
+  - Beat-Pulsation: Farben und Album-Cover pulsieren im Takt (requestAnimationFrame)
+  - Smooth Animationen (60 FPS, GPU-beschleunigt)
+  - Mobile & Desktop optimiert
 
 #### Apple Music Integration
 - **MusicKit Catalog Integration**: Alle Pages (Home, Search, Album, Playlist, Artist) nutzen Live-Daten
@@ -153,13 +161,17 @@ server/
 - Play/Pause Toggle
 - Skip Forward/Backward
 
-### Hover-Interaktionen
+### Hover-Interaktionen & Performance
 - Card Lift (4px translateY)
 - Black Overlay (20% opacity)
 - Play Button erscheint
 - Shadow Intensität +20%
 - Scale Animation auf Play Buttons (1.05)
 - Alle Transitions: 200ms ease
+- **Active States**: active:scale-95 für Touch-Feedback
+- **GPU-Beschleunigung**: backdrop-blur für Hardware-Rendering
+- **Akku-Sparsamkeit**: requestAnimationFrame statt setInterval für Animationen
+- **React Performance**: React.memo für häufig re-rendernde Komponenten
 
 ## Environment Variables
 
