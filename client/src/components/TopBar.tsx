@@ -1,4 +1,4 @@
-import { MagnifyingGlass, User, SignIn, SignOut, Crown } from '@phosphor-icons/react/dist/ssr';
+import { MagnifyingGlass, User, SignIn, SignOut, Crown, Gear } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -6,6 +6,13 @@ import { useLocation } from 'wouter';
 import { useMKAuth } from '@/hooks/useMKAuth';
 import { Badge } from '@/components/ui/badge';
 import { useSubscription } from '@/hooks/useSubscription';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function TopBar() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,14 +141,51 @@ export function TopBar() {
           )}
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full bg-secondary"
-          data-testid="button-user-menu"
-        >
-          <User size={20} weight="bold" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full bg-secondary"
+              data-testid="button-user-menu"
+            >
+              <User size={20} weight="bold" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {localStorage.getItem('userId') ? (
+              <>
+                <DropdownMenuItem onClick={() => setLocation('/settings')} data-testid="menu-item-settings">
+                  <Gear size={16} weight="bold" className="mr-2" />
+                  Einstellungen
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => {
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('username');
+                    setLocation('/login');
+                  }}
+                  data-testid="menu-item-logout"
+                >
+                  <SignOut size={16} weight="bold" className="mr-2" />
+                  Abmelden
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem onClick={() => setLocation('/login')} data-testid="menu-item-login">
+                  <SignIn size={16} weight="bold" className="mr-2" />
+                  Anmelden
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation('/register')} data-testid="menu-item-register">
+                  <User size={16} weight="bold" className="mr-2" />
+                  Registrieren
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
