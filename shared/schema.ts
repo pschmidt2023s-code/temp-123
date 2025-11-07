@@ -138,6 +138,8 @@ export const insertReleaseSchema = createInsertSchema(releases).omit({
   createdAt: true,
 }).extend({
   releaseType: releaseTypeEnum,
+  releaseDate: z.coerce.date(),
+  preorderDate: z.coerce.date().optional().nullable(),
   previewDurationSeconds: z.number().int().min(0).max(30).optional().nullable(),
 }).refine(
   (data) => {
