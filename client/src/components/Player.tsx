@@ -18,6 +18,7 @@ import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
 import { LyricsOverlay } from './LyricsOverlay';
 import { FullscreenPlayer } from './FullscreenPlayer';
+import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 
 function PlayerComponent() {
   const {
@@ -45,6 +46,12 @@ function PlayerComponent() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+
+  const handleDragEnd = (_event: any, info: PanInfo) => {
+    if (info.offset.y < -100 || info.velocity.y < -300) {
+      setShowFullscreen(true);
+    }
+  };
 
   const currentTrack = queue[currentIndex];
   const isDBRelease = currentTrack?.attributes?.url ? true : false;
@@ -264,12 +271,18 @@ function PlayerComponent() {
           onClose={() => setShowLyrics(false)}
         />
       )}
-      {showFullscreen && (
-        <FullscreenPlayer onClose={() => setShowFullscreen(false)} />
-      )}
+      <AnimatePresence>
+        {showFullscreen && (
+          <FullscreenPlayer onClose={() => setShowFullscreen(false)} />
+        )}
+      </AnimatePresence>
       
-      <footer 
-        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl border-t border-border"
+      <motion.footer 
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0.5, bottom: 0 }}
+        onDragEnd={handleDragEnd}
+        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl border-t border-border touch-none"
         style={{ 
           bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           height: '90px',
@@ -469,8 +482,11 @@ function PlayerComponent() {
             />
           </div>
         </div>
+        
+        {/* Drag Handle Indicator for Mobile */}
+        <div className="md:hidden absolute top-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-muted-foreground/30 rounded-full" />
       </div>
-      </footer>
+      </motion.footer>
     </>
   );
 }
