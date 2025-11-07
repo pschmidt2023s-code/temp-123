@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { usePlayer } from '@/store/usePlayer';
 import type { MKMediaItem } from '@shared/schema';
 import { musicKit } from '@/lib/musickit';
+import { memo } from 'react';
 
 interface TrackRowProps {
   track: MKMediaItem;
@@ -10,7 +11,7 @@ interface TrackRowProps {
   isPlaying?: boolean;
 }
 
-export function TrackRow({ track, index, isPlaying = false }: TrackRowProps) {
+export const TrackRow = memo(function TrackRow({ track, index, isPlaying = false }: TrackRowProps) {
   const { setQueue, pause } = usePlayer();
 
   const handlePlay = () => {
@@ -37,7 +38,7 @@ export function TrackRow({ track, index, isPlaying = false }: TrackRowProps) {
 
   return (
     <div
-      className="group grid grid-cols-[auto_40px_1fr_1fr_auto_auto] gap-4 items-center px-4 py-2 rounded hover:bg-sidebar-accent transition-colors"
+      className="group grid grid-cols-[auto_40px_1fr_1fr_auto_auto] gap-4 items-center px-4 py-2 rounded hover:bg-sidebar-accent transition-all duration-200 ease-out hover:scale-[1.005] active:scale-[0.995]"
       data-testid={`row-track-${track.id}`}
     >
       {/* Track Number / Play Button */}
@@ -65,8 +66,10 @@ export function TrackRow({ track, index, isPlaying = false }: TrackRowProps) {
         <img
           src={artwork}
           alt={track.attributes.name}
-          className="w-10 h-10 rounded object-cover"
+          className="w-10 h-10 rounded object-cover transition-transform duration-300 group-hover:scale-110"
           data-testid={`img-track-${track.id}`}
+          loading="lazy"
+          decoding="async"
         />
       )}
 
@@ -99,4 +102,4 @@ export function TrackRow({ track, index, isPlaying = false }: TrackRowProps) {
       </div>
     </div>
   );
-}
+});
