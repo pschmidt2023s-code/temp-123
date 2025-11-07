@@ -1066,13 +1066,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/releases', requireAdminAuth, async (req, res) => {
     try {
+      console.log('Received release data:', JSON.stringify(req.body, null, 2));
       const result = insertReleaseSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({ error: 'Invalid release data', details: result.error });
+        console.error('Validation failed:', JSON.stringify(result.error.issues, null, 2));
+        return res.status(400).json({ error: 'Invalid release data', details: result.error.issues });
       }
       const release = await storage.createRelease(result.data);
       res.status(201).json(release);
     } catch (error) {
+      console.error('Release creation error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
