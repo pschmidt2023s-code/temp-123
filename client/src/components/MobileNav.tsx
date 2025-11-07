@@ -14,10 +14,11 @@ export function MobileNav() {
 
   return (
     <nav 
-      className="md:hidden fixed left-0 right-0 z-40 glass border-t border-border bg-background/95 backdrop-blur-lg"
+      className="md:hidden fixed left-0 right-0 border-t border-border bg-background/95 backdrop-blur-lg shadow-lg"
       style={{ 
         height: '64px',
-        bottom: '90px'
+        bottom: '90px',
+        zIndex: 60
       }}
     >
       <div className="h-full flex items-center justify-around px-2">

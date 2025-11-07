@@ -153,8 +153,13 @@ function PlayerComponent() {
       )}
       
       <footer 
-        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg"
-        style={{ height: '90px', minHeight: '90px', maxHeight: '90px' }}
+        className="fixed bottom-0 left-0 right-0 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl"
+        style={{ 
+          height: '90px', 
+          minHeight: '90px', 
+          maxHeight: '90px',
+          zIndex: 50
+        }}
       >
         <div className="h-full flex flex-col md:flex-row items-center justify-between gap-1 md:gap-4">
         {/* Left: Current Track Info */}

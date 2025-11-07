@@ -56,10 +56,9 @@ function App() {
             <TopBar />
             
             <main 
-              className="px-4 md:px-8"
+              className="px-4 md:px-8 pb-[154px] md:pb-[90px]"
               style={{ 
-                paddingTop: '64px', 
-                paddingBottom: window.innerWidth < 768 ? '154px' : '90px' 
+                paddingTop: '64px'
               }}
             >
               <Router />
