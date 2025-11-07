@@ -567,11 +567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 await storage.updateCoupon(coupon.id, {
                   usedCount: (coupon.usedCount || 0) + 1,
                 });
-                
-                // Update coupon used count
-                await storage.updateCoupon(couponId, {
-                  usedCount: (coupon.usedCount || 0) + 1,
-                });
               }
             }
           }
