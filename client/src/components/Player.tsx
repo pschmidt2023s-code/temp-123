@@ -16,6 +16,7 @@ import { Slider } from '@/components/ui/slider';
 import { useState, useEffect, memo, useRef } from 'react';
 import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
+import { useMediaSession } from '@/hooks/useMediaSession';
 import { LyricsOverlay } from './LyricsOverlay';
 import { FullscreenPlayer } from './FullscreenPlayer';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
@@ -46,6 +47,9 @@ function PlayerComponent() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  
+  // Enable Media Session API for iPhone Control Center
+  useMediaSession();
 
   const handleDragEnd = (_event: any, info: PanInfo) => {
     if (info.offset.y < -100 || info.velocity.y < -300) {

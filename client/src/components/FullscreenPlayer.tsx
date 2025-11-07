@@ -306,94 +306,94 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
             </div>
           </div>
 
-        {/* Album Art - 4x4 Format */}
-        <div className="flex-1 flex items-center justify-center mb-8 px-4 relative z-10">
+        {/* Album Art - Smaller, Centered */}
+        <div className="flex-1 flex items-center justify-center mb-6 px-4 relative z-10">
           <div
-            className="relative transition-transform duration-500 w-full max-w-sm md:max-w-md"
+            className="relative transition-transform duration-500 w-full max-w-[280px] md:max-w-[320px]"
             style={{
               transform: isPulsing ? 'scale(1.02)' : 'scale(1)',
             }}
           >
             <img
-              src={musicKit.getArtworkURL(currentTrack.attributes.artwork, 600)}
+              src={musicKit.getArtworkURL(currentTrack.attributes.artwork, 400)}
               alt={currentTrack.attributes.name}
-              className="w-full aspect-square rounded-2xl shadow-2xl object-cover"
+              className="w-full aspect-square rounded-xl shadow-2xl object-cover"
             />
             <div
-              className="absolute inset-0 rounded-2xl transition-all duration-500"
+              className="absolute inset-0 rounded-xl transition-all duration-500"
               style={{
                 boxShadow: isPulsing
-                  ? `0 0 80px 20px hsl(${dominantColor})`
-                  : `0 0 40px 10px hsl(${dominantColor})`,
+                  ? `0 0 60px 15px hsl(${dominantColor})`
+                  : `0 0 30px 8px hsl(${dominantColor})`,
               }}
             />
           </div>
         </div>
 
         {/* Track Info */}
-        <div className="mb-6 text-center relative z-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 truncate">
+        <div className="mb-4 text-center relative z-10 px-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 truncate">
             {currentTrack.attributes.name}
           </h1>
-          <p className="text-lg md:text-xl text-white/70 truncate">
+          <p className="text-base md:text-lg text-white/70 truncate">
             {currentTrack.attributes.artistName}
           </p>
           {currentTrack.attributes.albumName && (
-            <p className="text-sm text-white/50 mt-1 truncate">
+            <p className="text-xs md:text-sm text-white/50 mt-0.5 truncate">
               {currentTrack.attributes.albumName}
             </p>
           )}
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-8 px-2 relative z-10">
+        <div className="mb-6 px-4 relative z-10">
           <Slider
             value={[currentTime]}
             max={duration}
             step={1000}
             onValueChange={handleSeek}
-            className="w-full h-2"
+            className="w-full h-1.5"
           />
-          <div className="flex justify-between text-sm text-white/70 mt-3 px-1">
+          <div className="flex justify-between text-xs text-white/60 mt-2 px-1">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between max-w-sm mx-auto mb-6 px-4 relative z-20">
+        <div className="flex items-center justify-between max-w-md mx-auto mb-8 px-8 relative z-20">
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleShuffle}
-            className={`text-white hover:bg-white/10 w-12 h-12 ${
+            className={`text-white hover:bg-white/10 w-10 h-10 ${
               shuffle ? 'text-primary' : 'text-white/70'
             }`}
             data-testid="button-shuffle-fullscreen"
           >
-            <Shuffle size={28} weight="bold" />
+            <Shuffle size={24} weight="bold" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={previous}
-            className="text-white hover:bg-white/10 w-14 h-14"
+            className="text-white hover:bg-white/10 w-12 h-12"
             data-testid="button-previous-fullscreen"
           >
-            <SkipBack size={36} weight="fill" />
+            <SkipBack size={32} weight="fill" />
           </Button>
 
           <Button
             size="icon"
             onClick={handlePlayPause}
-            className="w-20 h-20 rounded-full bg-white text-background hover:scale-105 active:scale-95 transition-transform shadow-2xl"
+            className="w-16 h-16 rounded-full bg-white text-background hover:scale-105 active:scale-95 transition-transform shadow-2xl"
             data-testid="button-play-pause-fullscreen"
           >
             {isPlaying ? (
-              <Pause size={40} weight="fill" />
+              <Pause size={32} weight="fill" />
             ) : (
-              <Play size={40} weight="fill" className="ml-1" />
+              <Play size={32} weight="fill" className="ml-1" />
             )}
           </Button>
 
@@ -401,22 +401,22 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
             variant="ghost"
             size="icon"
             onClick={next}
-            className="text-white hover:bg-white/10 w-14 h-14"
+            className="text-white hover:bg-white/10 w-12 h-12"
             data-testid="button-next-fullscreen"
           >
-            <SkipForward size={36} weight="fill" />
+            <SkipForward size={32} weight="fill" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleRepeat}
-            className={`text-white hover:bg-white/10 w-12 h-12 ${
+            className={`text-white hover:bg-white/10 w-10 h-10 ${
               repeat !== 'off' ? 'text-primary' : 'text-white/70'
             }`}
             data-testid="button-repeat-fullscreen"
           >
-            <Repeat size={28} weight="bold" />
+            <Repeat size={24} weight="bold" />
             {repeat === 'one' && (
               <span className="absolute top-1 right-1 text-xs">1</span>
             )}
