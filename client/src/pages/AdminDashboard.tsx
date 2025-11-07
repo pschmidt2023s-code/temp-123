@@ -59,7 +59,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="releases" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="releases" data-testid="tab-releases">
               <MusicNotes size={20} weight="bold" className="mr-2" />
               Releases
@@ -71,6 +71,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="services" data-testid="tab-services">
               <Cloud size={20} weight="bold" className="mr-2" />
               Services
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Plus size={20} weight="bold" className="mr-2" />
+              Benutzer
             </TabsTrigger>
           </TabsList>
 

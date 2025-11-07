@@ -355,6 +355,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Authentication Routes
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { username, email, password } = req.body;
+      
+      if (!username || !email || !password) {
+        return res.status(400).json({ error: 'Username, email and password required' });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
+
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(409).json({ error: 'Username already taken' });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create user
+      const user = await storage.createUser({
+        username,
+        email,
+        passwordHash,
+      });
+
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password required' });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Update last login
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Admin Authentication Routes
   app.post('/api/admin/login', async (req, res) => {
     try {
@@ -414,6 +487,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.invalidateAdminSession(token);
       }
       res.json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Admin User Management Routes (Protected)
+  app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Don't send password hashes to client
+      const safeUsers = users.map(({ passwordHash, twoFactorSecret, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/admin/users/:id', requireAdminAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Delete user's subscription first
+      const subscription = await storage.getUserSubscription(req.params.id);
+      if (subscription) {
+        await storage.cancelSubscription(subscription.id);
+      }
+      
+      // Delete the user
+      const deleted = await storage.deleteUser(req.params.id);
+      if (!deleted) {
+        return res.status(500).json({ error: 'Failed to delete user' });
+      }
+      
+      res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }

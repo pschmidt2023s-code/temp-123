@@ -12,9 +12,12 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   updateUserAppleToken(userId: string, token: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   
   getPlaylist(id: string): Promise<Playlist | undefined>;
   getPlaylistsByUser(userId: string): Promise<Playlist[]>;
@@ -100,15 +103,30 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
+    );
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
       ...insertUser,
       id, 
-      email: null,
-      appleToken: null,
-      stripeCustomerId: null,
-      stripeSubscriptionId: null,
+      email: insertUser.email || null,
+      passwordHash: insertUser.passwordHash || null,
+      appleToken: insertUser.appleToken || null,
+      stripeCustomerId: insertUser.stripeCustomerId || null,
+      stripeSubscriptionId: insertUser.stripeSubscriptionId || null,
+      createdAt: new Date(),
+      lastLoginAt: null,
+      twoFactorSecret: null,
+      twoFactorEnabled: false,
     };
     this.users.set(id, user);
     return user;
@@ -120,6 +138,10 @@ export class MemStorage implements IStorage {
     const updated = { ...user, ...data };
     this.users.set(id, updated);
     return updated;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
   }
 
   async updateUserAppleToken(userId: string, token: string): Promise<User | undefined> {
