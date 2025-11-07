@@ -1,334 +1,49 @@
 # GlassBeats - Pixel-Perfect Spotify Clone mit Apple Music Integration
 
-## Projektübersicht
-GlassBeats ist eine pixel-perfekte Nachbildung der Spotify-Oberfläche mit vollständiger Apple Music Integration. Die Anwendung bietet Zugriff auf 100 Millionen Songs, Lossless Audio, Dolby Atmos, Gapless Playback, Crossfade, timed Lyrics und alle modernen Musik-Streaming-Features.
+## Overview
+GlassBeats is a pixel-perfect Spotify UI clone with full Apple Music integration, offering access to 100 million songs, Lossless Audio, Dolby Atmos, Gapless Playback, Crossfade, and timed lyrics. It aims to replicate the modern music streaming experience while introducing a unique "Live Music Rooms" feature for real-time social listening. The project focuses on a high-fidelity user experience, performance optimization, and a robust subscription system, positioning itself as a premium music streaming platform with innovative social interaction capabilities.
 
-## Design-Spezifikationen
+## User Preferences
+Not specified. The agent should infer preferences from the project description.
 
-### Exakte Spotify-Farben (Dark Mode Only)
-- **Background**: #121212 (0 0% 7.1%)
-- **Surface 1**: #181818 (0 0% 9.4%)
-- **Surface 2**: #242424 (0 0% 14.1%)
-- **Hover**: #2a2a2a (0 0% 16.5%)
-- **Accent**: #1DB954 (142 70% 41%) - Spotify Green
-- **Text Primary**: #FFFFFF
-- **Text Secondary**: #B3B3B3 (0 0% 70%)
+## System Architecture
 
-### Exakte Layout-Maße
-- **Sidebar**: 241px fixed width, 8px padding
-- **TopBar**: 64px height, 32px horizontal padding
-- **Player Bar**: 90px height, fixed bottom
-- **Content Cards**: 200×200px album covers, 16px border radius
+### UI/UX Decisions
+- **Color Scheme**: Exact Spotify dark mode colors (`#121212`, `#181818`, `#242424`, `#2a2a2a`, `#1DB954` for accent, `FFFFFF` for primary text, `#B3B3B3` for secondary text).
+- **Layout**: Pixel-exact dimensions for Sidebar (241px), TopBar (64px), Player Bar (90px), and Content Cards (200x200px, 16px border-radius).
+- **Glassmorphism**: Applied to all Cards, Header, Player, and Sidebar with 20px backdrop-blur, 180% saturation, 6% white overlay, 1px border (8% white opacity), 16px border-radius, and a specific drop shadow (`0 8px 32px rgba(0,0,0,0.37)`).
+- **Typography**: Circular Std font (via cdnfonts.com) with Helvetica Neue fallback, specific sizes for headings (32px, 24px), body (16px), secondary (14px), and metadata (12px).
+- **Icons**: Phosphor Icons (bold, 24px).
+- **Responsiveness**: Fully responsive mobile design with bottom navigation, optimized card sizes (132x132px), and touch-optimized controls.
+- **Animations & Transitions**: Smooth page transitions, hover effects (scale, transform), image zoom on hover, staggered animations for lists, and custom easing curves (`cubic-bezier(0.4, 0, 0.2, 1)`).
+- **Fullscreen Player**: Dynamically extracts colors from album covers for animated background gradients and beat pulsation effects using the Canvas API and `requestAnimationFrame`.
 
-### Glassmorphism-Effekte
-Alle Cards, Header, Player und Sidebar erhalten Glassmorphism:
-- 20px Backdrop Blur mit 180% Saturation
-- White overlay at 6% opacity
-- 1px border at 8% white opacity
-- 16px border radius
-- Drop shadow: 0 8px 32px rgba(0,0,0,0.37)
+### Technical Implementations
+- **Frontend**: React 18 with TypeScript, Tailwind CSS (custom design system), Wouter for routing, Zustand for state management, TanStack Query for data fetching.
+- **Backend**: Express.js with in-memory storage (upgradeable to PostgreSQL).
+- **Performance**: `React.memo` for key components, lazy loading and `decoding="async"` for images, `requestAnimationFrame` for animations (60 FPS), `will-change` for GPU acceleration, touch optimizations.
+- **Subscription System**: 3-tier model (Plus, Premium, Family) with feature access control, pricing page, upgrade/downgrade flows, and coupon integration.
+- **Admin Dashboard**: Secure authentication (bcrypt, session-token), management for releases, artist registration, streaming services, and coupons.
+- **Live Music Rooms**: Unique feature utilizing WebSocket (ws package) for real-time synchronized playback, live chat, participant display, and feature gating (Family tier only).
 
-### Typografie
-- **Font**: Circular Std (via fonts.cdnfonts.com), Fallback: Helvetica Neue
-- **Größen**: 32px (Heading), 24px (Subheading), 16px (Body), 14px (Secondary), 12px (Metadata)
+### Feature Specifications
+- **Core UI & Design**: Pixel-perfect Spotify UI, Glassmorphism, comprehensive navigation (8 pages), German UI, responsive mobile design, performance-optimized, smooth transitions and animations.
+- **Player & Playback**: Full controls (play, pause, shuffle, repeat, volume), queue management, progress bar, current time/duration display, fullscreen player with dynamic album art colors and beat pulsation.
+- **Apple Music Integration**: MusicKit Catalog for live data across all pages (Home, Search, Album, Playlist, Artist), Radio Stations, Apple Music authentication, timed lyrics overlay, custom MusicKit hooks.
+- **Subscription Management**: 3-tier model, backend API routes, feature access control, pricing page, coupon integration, payment options (Stripe Checkout, optional PayPal).
+- **Admin Dashboard**: Secure authentication, release management (status, ISRC, UPC, Catalog ID), artist registration links, streaming service management, CRUD for discount coupons.
+- **Live Music Rooms**: WebSocket-based real-time sync, room management, synchronized playback, live chat, participant display (Family tier exclusive).
 
-## Technologie-Stack
-
-### Frontend
-- React 18 mit TypeScript
-- Tailwind CSS mit Custom Design System
-- Wouter für Routing
-- Phosphor Icons (bold, 24px)
-- Zustand für State Management
-- TanStack Query für Data Fetching
-
-### Backend
-- Express.js
-- In-Memory Storage (kann auf PostgreSQL umgestellt werden)
-- API-Routen für User-Preferences und Playlists
-
-### Apple Music Integration
-- MusicKit JS v3 (über CDN geladen)
-- Developer Token wird als VITE_MK_DEV_TOKEN Secret erwartet
-- Demo-Modus wenn kein Token vorhanden
-
-## Projekt-Struktur
-
-```
-client/
-├── src/
-│   ├── components/
-│   │   ├── ui/              # Shadcn UI Komponenten
-│   │   ├── Sidebar.tsx      # 241px fixed Desktop Navigation (Abos/Familie dynamisch)
-│   │   ├── MobileNav.tsx    # Bottom Navigation für Mobile (bottom: 90px)
-│   │   ├── TopBar.tsx       # 64px Search & User Menu
-│   │   ├── Player.tsx       # 90px Bottom Player (React.memo optimiert)
-│   │   ├── FullscreenPlayer.tsx  # Fullscreen Player mit animierten Album-Farben
-│   │   ├── Card.tsx         # 200x200px (Desktop) / 132x132px (Mobile) Cards
-│   │   └── TrackRow.tsx     # Track List Row
-│   ├── pages/
-│   │   ├── Home.tsx         # Für dich / Featured
-│   │   ├── Search.tsx       # Suche mit Kategorien
-│   │   ├── Album.tsx        # Album-Detailansicht
-│   │   ├── Playlist.tsx     # Playlist-Detailansicht
-│   │   ├── Artist.tsx       # Künstler-Profil
-│   │   ├── Liked.tsx        # Lieblingssongs
-│   │   ├── Library.tsx      # Bibliothek
-│   │   ├── Pricing.tsx      # Subscription-Pläne (3 Tiers)
-│   │   ├── LiveRooms.tsx    # Live Music Rooms (WebSocket)
-│   │   ├── AdminLogin.tsx   # Admin-Login mit Lock Icon
-│   │   └── AdminDashboard.tsx  # Admin-Dashboard mit Tabs (Releases, Links, Services)
-│   ├── hooks/
-│   │   ├── useSubscription.ts  # Subscription Management
-│   │   ├── useLiveRoom.ts      # WebSocket Live Room Hook
-│   │   └── useAdminAuth.ts     # Admin Authentication Hook
-│   ├── store/
-│   │   └── usePlayer.ts     # Zustand Player State
-│   ├── lib/
-│   │   ├── musickit.ts           # MusicKit Service
-│   │   ├── demo-data.ts          # Demo Tracks/Albums
-│   │   └── subscription-features.ts  # Feature Access Control
-│   └── App.tsx              # Main Layout & Routing (Admin-Routes separiert)
-│
-shared/
-└── schema.ts                # TypeScript Types & Schemas (Subscriptions, Admin, Releases, Coupons)
-
-server/
-├── routes.ts                # API Endpoints (User, Playlists, Subscriptions, Admin, Coupons, Payments)
-├── storage.ts               # Data Storage Interface (inkl. Admin-Daten, Coupon-Management)
-├── rooms.ts                 # WebSocket Server für Live Rooms
-└── paypal.ts                # PayPal SDK Integration (optional)
-```
-
-## Features
-
-### Implementiert ✅
-
-#### Core UI & Design
-- Pixel-perfekte Spotify UI mit exakten inline-style Maßen (241px, 64px, 90px)
-- Glassmorphism-Effekte auf allen Elementen mit backdrop-blur (GPU-beschleunigt)
-- Vollständige Navigation (8 Seiten inkl. Pricing & Live Rooms)
-- Deutsche UI (komplett)
-- **Responsive Mobile Design**: Bottom Navigation (bündig über Player bei bottom: 90px), optimierte Card-Größen (132×132px), Touch-optimierte Controls
-- **Performance-Optimiert**: React.memo für Player, requestAnimationFrame für Animationen, backdrop-blur für GPU-Beschleunigung
-
-#### Player & Playback
-- Player mit allen Controls (Play, Pause, Next, Previous, Shuffle, Repeat)
-- Progress Bar & Volume Control
-- Queue Management
-- Shuffle & Repeat Modes
-- Current Time & Duration Display mit Timer-Synchronisation
-- **Fullscreen Player** ✨: Großer Bildschirm-füllender Player
-  - Dynamische Farbextraktion aus Album-Covers (Canvas API)
-  - Animierte Hintergrund-Gradients mit Album-Farben
-  - Beat-Pulsation: Farben und Album-Cover pulsieren im Takt (requestAnimationFrame)
-  - Smooth Animationen (60 FPS, GPU-beschleunigt)
-  - Mobile & Desktop optimiert
-
-#### Apple Music Integration
-- **MusicKit Catalog Integration**: Alle Pages (Home, Search, Album, Playlist, Artist) nutzen Live-Daten
-- **Home Page Live-Daten**: Recently Played, Recommendations, New Releases aus MusicKit Catalog
-- **Radio Stations**: "Radio starten" Buttons auf Album/Artist Pages für MusicKit Stations
-- **Apple Music Authentifizierung**: Login/Logout UI im TopBar mit Status-Badge
-- **Timed Lyrics Overlay**: Vollbild-Lyrics mit Wort-für-Wort-Synchronisation
-- MusicKit Hooks vollständig implementiert (useMKAuth, useMKCatalog, useMKPlayback, useMKLyrics)
-
-#### Subscription System
-- **3-Tier Subscription Model**:
-  - **Plus** (4,99€): Werbefrei, Offline-Downloads
-  - **Premium** (9,99€): Plus + Dolby Atmos, Lossless Audio, Unbegrenzte Skips
-  - **Family** (14,99€): Premium + Live Music Rooms, bis zu 6 Accounts
-- Backend API-Routen: GET/POST/PATCH für Subscriptions
-- Feature Access Control mit `getFeatureAccess()` Helper
-- Pricing Page mit interaktiven Tier-Cards
-- Upgrade/Downgrade Flows mit Toast-Notifications
-- **Navigation**: "Abos" Punkt ändert sich zu "Familie" nach Abo-Abschluss
-- **Feature Gating**: Upgrade-Prompts für Nicht-Family-Tier bei Live Rooms-Zugriff
-- **Gutschein-Integration** 💰:
-  - Gutscheincode-Eingabe auf Pricing Page
-  - Real-time Validierung vor Checkout
-  - Rabatt-Visualisierung (durchgestrichener Preis)
-  - Stripe-Coupon-Integration für automatische Rabatt-Anwendung
-  - Tier-spezifische Gutschein-Gültigkeit
-  - Automatisches Usage-Tracking bei erfolgreicher Zahlung
-- **Payment Options**:
-  - Stripe Checkout (Kreditkarte)
-  - PayPal Integration (optional, nur mit Secrets)
-
-#### Admin Dashboard 🔐
-- **Sichere Authentifizierung**: bcrypt Password-Hashing, Session-Token-basiert
-- **Release-Management**: 
-  - Releases anlegen, bearbeiten, löschen
-  - Status-Verwaltung (pending, approved, published, rejected)
-  - ISRC, UPC, Catalog ID Unterstützung
-- **Künstler-Registrierung**:
-  - Einmalige Registrierungslinks generieren
-  - 7 Tage Gültigkeit
-  - Link-Status-Tracking (aktiv, verwendet, abgelaufen)
-  - E-Mail & Künstlername optional speicherbar
-- **Streaming-Service-Management**:
-  - Services hinzufügen, bearbeiten, löschen
-  - Status-Verwaltung (active, maintenance, disabled)
-  - API-Endpoint-Konfiguration
-- **Gutschein-System** ✨:
-  - CRUD-Interface für Rabatt-Gutscheine
-  - Prozentuale oder Festpreis-Rabatte
-  - Tier-spezifische Gutscheine (Plus/Premium/Family)
-  - Verwendungslimits & Ablaufdatum
-  - Automatisches Usage-Tracking
-  - Real-time Validierung beim Checkout
-- **Admin-Credentials**: Gesichert als ADMIN_USERNAME & ADMIN_PASSWORD Secrets
-- **Zugriff**: `/admin/login` und `/admin` Routen, separates Layout ohne Player/Navigation
-
-#### Live Music Rooms (EINZIGARTIGES FEATURE) ✨
-- **WebSocket-basierte Echtzeit-Synchronisation** (ws Package)
-- **Room Management**: Erstellen, Beitreten, Verlassen
-- **Synchronisiertes Playback**: Alle Teilnehmer hören gleichzeitig
-- **Live-Chat**: Nachrichten in Echtzeit während des Hörens
-- **Teilnehmer-Anzeige**: Wer ist aktuell im Room?
-- **Feature Gating**: Nur für Family-Abonnenten zugänglich
-- **Bis zu 6 Teilnehmer** pro Room (Family-Tier)
-
-#### Weitere Features
-- Backend Playlist-Management mit React Query
-- PWA Support (Manifest + Service Worker)
-- Card-basiertes Layout mit Hover-Effekten (4px Lift, 20% Overlay)
-
-### Player Features
-- Queue Management
-- Shuffle & Repeat Modes
-- Volume Control (0-100)
-- Current Time & Duration Display
-- Play/Pause Toggle
-- Skip Forward/Backward
-
-### Hover-Interaktionen & Performance
-- Card Lift (4px translateY)
-- Black Overlay (20% opacity)
-- Play Button erscheint
-- Shadow Intensität +20%
-- Scale Animation auf Play Buttons (1.05)
-- Alle Transitions: 200ms ease
-- **Active States**: active:scale-95 für Touch-Feedback
-- **GPU-Beschleunigung**: backdrop-blur für Hardware-Rendering
-- **Akku-Sparsamkeit**: requestAnimationFrame statt setInterval für Animationen
-- **React Performance**: React.memo für häufig re-rendernde Komponenten
-
-## Environment Variables
-
-```
-VITE_MK_DEV_TOKEN=<Apple MusicKit Developer Token>
-ADMIN_USERNAME=<Kryptischer Admin-Benutzername>
-ADMIN_PASSWORD=<Sicheres Admin-Passwort>
-STRIPE_SECRET_KEY=<Stripe Secret Key>
-VITE_STRIPE_PUBLIC_KEY=<Stripe Public Key>
-SESSION_SECRET=<Session Secret für Express>
-PAYPAL_CLIENT_ID=<PayPal Client ID> (optional)
-PAYPAL_CLIENT_SECRET=<PayPal Client Secret> (optional)
-```
-
-**Hinweise**: 
-- Ohne VITE_MK_DEV_TOKEN läuft die App im Demo-Modus
-- ADMIN_PASSWORD unterstützt sowohl bcrypt-Hashes als auch Klartext (für Dev)
-- Stripe-Keys erforderlich für Zahlungs-Integration
-- PayPal-Keys optional - App läuft auch ohne PayPal-Integration
-
-## Apple MusicKit Setup
-
-1. Besuchen Sie https://developer.apple.com
-2. Melden Sie sich mit Ihrer Apple ID an
-3. Navigieren Sie zu "Certificates, Identifiers & Profiles"
-4. Erstellen Sie einen MusicKit Identifier
-5. Generieren Sie einen Developer Token
-6. Fügen Sie den Token als VITE_MK_DEV_TOKEN Secret hinzu
-
-## Entwicklung
-
-```bash
-npm install
-npm run dev
-```
-
-Die Anwendung startet auf Port 5000 und ist über die Replit-URL erreichbar.
-
-## Deutsche UI Labels
-
-Alle Texte sind auf Deutsch:
-- Start (Home)
-- Suchen (Search)
-- Deine Bibliothek (Library)
-- Deine Lieblingssongs (Liked Songs)
-- Playlist erstellen (Create Playlist)
-- Songtexte (Lyrics)
-- Warteschlange (Queue)
-- Für dich (For You)
-- Kürzlich gespielt (Recently Played)
-- Neuerscheinungen (New Releases)
-
-## Performance-Optimierungen
-
-- Lazy Loading für Bilder
-- Optimierte Artwork-URLs (400x400 für Cards, 64x64 für Player)
-- Smooth Scroll für Carousels
-- Debounced Search
-- Minimal Re-renders durch Zustand
-
-## Design-Compliance
-
-✅ Sidebar exakt 241px
-✅ TopBar exakt 64px
-✅ Player exakt 90px
-✅ Cards exakt 200x200px
-✅ Glass-Blur 20px sichtbar
-✅ Hover-Animationen (4px Lift + Shadow)
-✅ Phosphor Icons bold, 24px
-✅ Circular Font geladen
-✅ Spotify Green (#1DB954) für Akzente
-✅ Alle Maße pixel-genau
-
-## Aktuelle Implementierung (November 2025)
-
-### Phase 1: MusicKit Integration (✅ Abgeschlossen)
-- ✅ Home Page: Recently Played, Recommendations, New Releases
-- ✅ Search Page: Debounced catalog search mit URL sync
-- ✅ Album/Playlist/Artist Pages: Live catalog data mit Tracks
-- ✅ Radio Stations: Create & play MusicKit stations
-- ✅ Timed Lyrics: Fullscreen overlay mit word-sync
-- ✅ Authentication: Login/Logout flow im TopBar
-- ✅ Alle 6 Resource Types: albums, playlists, artists, songs, music-videos, stations
-
-### Phase 2: Responsive Mobile & Subscriptions (✅ NEU)
-- ✅ **Responsive Design**: Mobile Bottom Navigation, optimierte Card-Größen (132×132px), Touch-Controls
-- ✅ **Subscription Backend**: Schema erweitert, API-Routen implementiert (GET/POST/PATCH)
-- ✅ **Pricing Page**: 3 Tier-Cards (Plus/Premium/Family) mit Feature-Liste
-- ✅ **Feature Access Control**: `getFeatureAccess()` Helper für Tier-basierte Features
-- ✅ **Live Music Rooms Backend**: WebSocket Server mit Room-Management
-- ✅ **Live Music Rooms Frontend**: Room-Erstellung, Chat, Teilnehmer-Liste, synchronisierte Controls
-- ✅ **Feature Gating**: Live Rooms nur für Family-Tier mit Upgrade-Prompt
-
-### Demo-Modus Fallback
-- App läuft ohne VITE_MK_DEV_TOKEN mit vordefinierten Tracks
-- Nahtloser Übergang zu Live-Daten sobald authentifiziert
-- Subscription-System funktioniert mit Demo-User
-
-## Alleinstellungsmerkmale
-
-**Live Music Rooms** ist ein einzigartiges Feature, das bei keinem aktuellen Musik-Streaming-Dienst verfügbar ist:
-- **Spotify**: Kein synchronisiertes Hören mit Freunden
-- **Apple Music**: SharePlay nur für FaceTime, kein eigenständiges Feature
-- **YouTube Music**: Keine Live-Rooms oder Synchronisation
-- **Tidal**: Keine Social-Listening-Features
-- **GlassBeats**: ✨ **Live Music Rooms mit WebSocket-Echtzeit-Sync, Chat und gemeinsamer Queue!**
-
-## Zukünftige Features (Roadmap)
-
-- Cloud Library Upload
-- Offline-Cache mit Service Worker (für Plus+)
-- Collaborative Playlists (für Premium+)
-- Crossfade & Gapless Playback (über MusicKit)
-- Screen Sharing in Live Rooms (Video-Integration)
-- Voice Chat in Live Rooms (WebRTC)
-
-## Lizenz
-
-Dieses Projekt ist eine Demo-Anwendung für Bildungszwecke.
+## External Dependencies
+- **Apple MusicKit JS v3**: Loaded via CDN for Apple Music integration. Requires `VITE_MK_DEV_TOKEN`.
+- **Tailwind CSS**: For styling and custom design system.
+- **Wouter**: For client-side routing.
+- **Phosphor Icons**: For UI iconography.
+- **Zustand**: For global state management.
+- **TanStack Query**: For data fetching and caching.
+- **Express.js**: For the backend server.
+- **ws package**: For WebSocket communication in Live Music Rooms.
+- **bcrypt**: For password hashing in the Admin Dashboard.
+- **Stripe Checkout**: For credit card payments. Requires `STRIPE_SECRET_KEY` and `VITE_STRIPE_PUBLIC_KEY`.
+- **PayPal SDK**: Optional integration for PayPal payments. Requires `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`.
+- **cdnfonts.com**: To load Circular Std font.
