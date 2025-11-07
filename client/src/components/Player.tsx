@@ -149,17 +149,6 @@ function PlayerComponent() {
     }
   };
 
-  const handleAudioPlay = () => {
-    if (!isPlaying) {
-      play();
-    }
-  };
-
-  const handleAudioPause = () => {
-    if (isPlaying) {
-      pause();
-    }
-  };
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -267,8 +256,6 @@ function PlayerComponent() {
         onTimeUpdate={handleAudioTimeUpdate}
         onLoadedMetadata={handleAudioLoadedMetadata}
         onEnded={handleAudioEnded}
-        onPlay={handleAudioPlay}
-        onPause={handleAudioPause}
       />
       
       {showLyrics && currentTrack && (

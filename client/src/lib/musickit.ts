@@ -50,8 +50,6 @@ class MusicKitService {
     const audioUrl = (item.attributes as any).url;
     
     if (audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.play().catch(err => console.warn('Local audio playback failed:', err));
       return;
     }
     
@@ -71,6 +69,10 @@ class MusicKitService {
     } catch (error) {
       console.warn('Pause failed:', error);
     }
+  }
+
+  hasLocalAudio(item: MKMediaItem): boolean {
+    return !!(item.attributes as any).url;
   }
 
   getArtworkURL(artwork: MKMediaItem['attributes']['artwork'], size = 400): string {
