@@ -12,7 +12,7 @@ import type { MKMediaItem } from '@shared/schema';
 export default function Album() {
   const [, params] = useRoute('/album/:id');
   const { setQueue, queue, currentIndex, isPlaying } = usePlayer();
-  const { getAlbum } = useMKCatalog();
+  const { getAlbum, createStation } = useMKCatalog();
   const [albumData, setAlbumData] = useState<MKMediaItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -47,6 +47,36 @@ export default function Album() {
   const handlePlayAll = () => {
     setQueue(albumTracks, 0);
     musicKit.play(albumTracks[0]);
+  };
+
+  const handleStartRadio = async () => {
+    if (!params?.id) return;
+    
+    try {
+      const mk = musicKit.getInstance();
+      if (!mk) {
+        console.warn('MusicKit not available');
+        return;
+      }
+
+      const station = await createStation('albums', params.id);
+      if (!station) {
+        console.error('Failed to create station');
+        return;
+      }
+
+      await mk.setQueue({ station: station.id });
+      await mk.play();
+      
+      const queueItems = mk.player?.queue?.items || [];
+      if (queueItems.length > 0) {
+        const mediaItems = queueItems.map((q: any) => q.item);
+        const currentPosition = mk.player?.queue?.position || 0;
+        setQueue(mediaItems, currentPosition);
+      }
+    } catch (error) {
+      console.error('Failed to start radio:', error);
+    }
   };
 
   const totalDuration = albumTracks.reduce(
@@ -114,6 +144,15 @@ export default function Album() {
 
         <Button variant="ghost" size="icon" className="w-10 h-10" data-testid="button-like-album">
           <Heart size={28} weight="bold" className="text-muted-foreground" />
+        </Button>
+
+        <Button 
+          variant="outline" 
+          onClick={handleStartRadio}
+          className="text-sm"
+          data-testid="button-start-radio"
+        >
+          Radio starten
         </Button>
 
         <Button variant="ghost" size="icon" className="w-10 h-10" data-testid="button-album-menu">

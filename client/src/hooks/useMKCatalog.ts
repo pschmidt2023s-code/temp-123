@@ -77,7 +77,7 @@ export function useMKCatalog() {
     }
   };
 
-  const createStation = async (type: 'songs' | 'artists', id: string) => {
+  const createStation = async (type: 'songs' | 'artists' | 'albums', id: string) => {
     const mk = musicKit.getInstance();
     if (!mk) {
       console.warn('MusicKit not available for stations');
@@ -85,14 +85,8 @@ export function useMKCatalog() {
     }
 
     try {
-      const station = await mk.api.music('/v1/me/stations', {
-        method: 'POST',
-        body: {
-          type: type,
-          id: id,
-        },
-      });
-      return station;
+      const response = await mk.api.music(`/v1/catalog/de/${type}/${id}/station`, {});
+      return response.data[0];
     } catch (error) {
       console.error('Failed to create station:', error);
       return null;

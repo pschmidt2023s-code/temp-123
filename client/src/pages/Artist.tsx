@@ -15,7 +15,7 @@ export default function Artist() {
   const [, params] = useRoute('/artist/:id');
   const [, setLocation] = useLocation();
   const { setQueue, queue, currentIndex, isPlaying } = usePlayer();
-  const { getArtist } = useMKCatalog();
+  const { getArtist, createStation } = useMKCatalog();
   const [artistData, setArtistData] = useState<MKMediaItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -53,6 +53,36 @@ export default function Artist() {
     musicKit.play(artistTracks[0]);
   };
 
+  const handleStartRadio = async () => {
+    if (!params?.id) return;
+    
+    try {
+      const mk = musicKit.getInstance();
+      if (!mk) {
+        console.warn('MusicKit not available');
+        return;
+      }
+
+      const station = await createStation('artists', params.id);
+      if (!station) {
+        console.error('Failed to create station');
+        return;
+      }
+
+      await mk.setQueue({ station: station.id });
+      await mk.play();
+      
+      const queueItems = mk.player?.queue?.items || [];
+      if (queueItems.length > 0) {
+        const mediaItems = queueItems.map((q: any) => q.item);
+        const currentPosition = mk.player?.queue?.position || 0;
+        setQueue(mediaItems, currentPosition);
+      }
+    } catch (error) {
+      console.error('Failed to start radio:', error);
+    }
+  };
+
   const heroImage = artistData?.attributes?.artwork
     ? musicKit.getArtworkURL(artistData.attributes.artwork, 1200)
     : 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&h=340&fit=crop';
@@ -87,6 +117,15 @@ export default function Artist() {
           data-testid="button-play-artist"
         >
           <Play size={24} weight="fill" />
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          onClick={handleStartRadio}
+          className="text-sm"
+          data-testid="button-start-radio-artist"
+        >
+          Radio starten
         </Button>
       </div>
 
