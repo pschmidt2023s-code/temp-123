@@ -49,7 +49,7 @@ export function MobileNav() {
       className="md:hidden fixed left-0 right-0 border-t border-border bg-background/95 backdrop-blur-lg shadow-lg"
       style={{ 
         height: '64px',
-        bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+        bottom: '90px',
         zIndex: 60
       }}
     >

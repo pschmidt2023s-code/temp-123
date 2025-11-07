@@ -153,11 +153,10 @@ function PlayerComponent() {
       )}
       
       <footer 
-        className="fixed bottom-0 left-0 right-0 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl"
+        className="fixed left-0 right-0 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl"
         style={{ 
-          height: 'calc(90px + env(safe-area-inset-bottom, 0px))', 
-          minHeight: 'calc(90px + env(safe-area-inset-bottom, 0px))',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          height: '90px',
+          bottom: 'env(safe-area-inset-bottom, 0px)',
           zIndex: 50
         }}
       >
