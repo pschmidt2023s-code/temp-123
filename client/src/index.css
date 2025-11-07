@@ -2,236 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* SPOTIFY EXACT COLORS - DARK MODE ONLY */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
-
-  /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
-
-  --background: 0 0% 98%;
-
-  --foreground: 0 0% 9%;
-
-  --border: 0 0% 89%;
-
-  --card: 0 0% 96%;
-
-  --card-foreground: 0 0% 9%;
-
-  --card-border: 0 0% 92%;
-
-  --sidebar: 0 0% 94%;
-
-  --sidebar-foreground: 0 0% 9%;
-
-  --sidebar-border: 0 0% 90%;
-
-  --sidebar-primary: 142 76% 36%;
-
-  --sidebar-primary-foreground: 0 0% 98%;
-
-  --sidebar-accent: 0 0% 88%;
-
-  --sidebar-accent-foreground: 0 0% 9%;
-
-  --sidebar-ring: 142 76% 36%;
-
-  --popover: 0 0% 92%;
-
-  --popover-foreground: 0 0% 9%;
-
-  --popover-border: 0 0% 88%;
-
-  --primary: 142 76% 36%;
-
-  --primary-foreground: 0 0% 98%;
-
-  --secondary: 0 0% 86%;
-
-  --secondary-foreground: 0 0% 9%;
-
-  --muted: 0 2% 90%;
-
-  --muted-foreground: 0 0% 25%;
-
-  --accent: 142 8% 88%;
-
-  --accent-foreground: 0 0% 9%;
-
-  --destructive: 0 84% 32%;
-
-  --destructive-foreground: 0 0% 98%;
-
-  --input: 0 0% 78%;
-  --ring: 142 76% 36%;
-  --chart-1: 142 76% 28%;
-  --chart-2: 200 82% 32%;
-  --chart-3: 280 65% 32%;
-  --chart-4: 30 80% 35%;
-  --chart-5: 340 75% 35%;
-
-  --font-sans: Open Sans, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
-  --radius: .5rem; /* 8px */
-  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 2px 4px -1px hsl(0 0% 0% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 4px 6px -1px hsl(0 0% 0% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 8px 10px -1px hsl(0 0% 0% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
-
-  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
-
-  /* Fallback for older browsers */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --primary-border: hsl(var(--primary));
-  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --secondary-border: hsl(var(--secondary));
-  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --muted-border: hsl(var(--muted));
-  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --accent-border: hsl(var(--accent));
-  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --destructive-border: hsl(var(--destructive));
-  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-}
-
-.dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
 
-  --opaque-button-border-intensity: 9;  /* In terms of percentages */
+  --opaque-button-border-intensity: 9;
 
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 0 0% 7%;
-
-  --foreground: 0 0% 98%;
-
-  --border: 0 0% 15%;
-
-  --card: 0 0% 9%;
-
-  --card-foreground: 0 0% 98%;
-
-  --card-border: 0 0% 12%;
-
-  --sidebar: 0 0% 11%;
-
-  --sidebar-foreground: 0 0% 98%;
-
-  --sidebar-border: 0 0% 14%;
-
-  --sidebar-primary: 142 76% 36%;
-
-  --sidebar-primary-foreground: 0 0% 98%;
-
-  --sidebar-accent: 0 0% 16%;
-
-  --sidebar-accent-foreground: 0 0% 98%;
-
-  --sidebar-ring: 142 76% 36%;
-
-  --popover: 0 0% 14%;
-
-  --popover-foreground: 0 0% 98%;
-
-  --popover-border: 0 0% 17%;
-
-  --primary: 142 76% 36%;
-
-  --primary-foreground: 0 0% 98%;
-
-  --secondary: 0 0% 18%;
-
-  --secondary-foreground: 0 0% 98%;
-
-  --muted: 0 2% 16%;
-
-  --muted-foreground: 0 0% 70%;
-
-  --accent: 142 6% 17%;
-
-  --accent-foreground: 0 0% 98%;
-
+  /* Spotify Color Palette */
+  --background: 0 0% 7.1%;        /* #121212 */
+  --foreground: 0 0% 100%;        /* #FFFFFF */
+  --border: 0 0% 15.7%;           /* #282828 */
+  
+  --card: 0 0% 9.4%;              /* #181818 - surface1 */
+  --card-foreground: 0 0% 100%;
+  --card-border: 0 0% 15.7%;
+  
+  --sidebar: 0 0% 9.4%;           /* #181818 */
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 15.7%;
+  --sidebar-primary: 142 70% 41%; /* #1DB954 - Spotify Green */
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 0 0% 16.5%;   /* #2a2a2a - hover */
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 142 70% 41%;
+  
+  --popover: 0 0% 14.1%;          /* #242424 - surface2 */
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 0 0% 15.7%;
+  
+  --primary: 142 70% 41%;         /* #1DB954 - Spotify Green */
+  --primary-foreground: 0 0% 0%;
+  
+  --secondary: 0 0% 14.1%;        /* #242424 */
+  --secondary-foreground: 0 0% 100%;
+  
+  --muted: 0 0% 14.1%;
+  --muted-foreground: 0 0% 70%;   /* #B3B3B3 */
+  
+  --accent: 142 70% 41%;
+  --accent-foreground: 0 0% 0%;
+  
   --destructive: 0 84% 32%;
-
-  --destructive-foreground: 0 0% 98%;
-
-  --input: 0 0% 24%;
-  --ring: 142 76% 36%;
-  --chart-1: 142 76% 65%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --input: 0 0% 14.1%;
+  --ring: 142 70% 41%;
+  
+  --chart-1: 142 70% 41%;
   --chart-2: 200 82% 68%;
   --chart-3: 280 65% 72%;
   --chart-4: 30 80% 68%;
   --chart-5: 340 75% 70%;
 
-  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 2px 4px -1px hsl(0 0% 0% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 4px 6px -1px hsl(0 0% 0% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 8px 10px -1px hsl(0 0% 0% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --font-sans: 'Circular Std', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 1rem; /* 16px for glass elements */
+  
+  /* Glassmorphism Shadows */
+  --shadow-glass: 0 8px 32px rgba(0,0,0,0.37), inset 0 0 0 1px rgba(255,255,255,0.05);
+  --shadow-card: 0 12px 24px rgba(0,0,0,0.5);
+  
+  --tracking-normal: 0em;
+  --spacing: 0.5rem; /* 8px base unit */
 
-  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
-
-  /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --sidebar-accent-border: hsl(var(--sidebar-accent));
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+.dark {
+  /* Same as root - dark mode only */
 }
 
 @layer base {
@@ -353,5 +209,32 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
+  }
+}
+
+/* Glassmorphism utility class */
+@layer utilities {
+  .glass {
+    backdrop-filter: blur(20px) saturate(180%);
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-glass);
+  }
+  
+  .card-hover-lift {
+    transition: all 200ms ease;
+  }
+  
+  .card-hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+  
+  .play-button-scale {
+    transition: all 200ms ease;
+  }
+  
+  .play-button-scale:hover {
+    transform: scale(1.05);
   }
 }

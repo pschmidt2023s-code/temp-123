@@ -5,10 +5,23 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      spacing: {
+        'sidebar': '241px',
+        'topbar': '64px',
+        'player': '90px',
+        'card': '200px',
+      },
+      fontSize: {
+        'heading': '32px',
+        'subheading': '24px',
+        'body': '16px',
+        'secondary': '14px',
+        'metadata': '12px',
+      },
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: "1rem", /* 16px for glass */
+        md: "1rem", /* 16px */
+        sm: ".5rem", /* 8px */
       },
       colors: {
         // Flat / base colors (regular buttons)
