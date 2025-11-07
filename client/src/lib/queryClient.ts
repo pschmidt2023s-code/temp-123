@@ -3,6 +3,18 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    
+    // Handle 401 Unauthorized for admin routes
+    if (res.status === 401 && res.url.includes('/api/admin')) {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_username');
+      
+      // Redirect to admin login if on admin page
+      if (window.location.pathname.startsWith('/admin') && !window.location.pathname.includes('/login')) {
+        window.location.href = '/admin/login';
+      }
+    }
+    
     throw new Error(`${res.status}: ${text}`);
   }
 }
