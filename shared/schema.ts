@@ -109,6 +109,13 @@ export const streamingServices = pgTable("streaming_services", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const adminSessions = pgTable("admin_sessions", {
+  token: text("token").primaryKey(),
+  username: text("username").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -181,6 +188,7 @@ export type InsertArtistRegistrationLink = z.infer<typeof insertArtistRegistrati
 export type ArtistRegistrationLink = typeof artistRegistrationLinks.$inferSelect;
 export type InsertStreamingService = z.infer<typeof insertStreamingServiceSchema>;
 export type StreamingService = typeof streamingServices.$inferSelect;
+export type AdminSession = typeof adminSessions.$inferSelect;
 
 export const insertWebAuthnCredentialSchema = createInsertSchema(webauthnCredentials).omit({
   createdAt: true,

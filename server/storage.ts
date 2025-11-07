@@ -415,4 +415,233 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db } from './db';
+import { eq } from 'drizzle-orm';
+import {
+  users,
+  playlists,
+  subscriptions,
+  adminUsers,
+  releases,
+  artistRegistrationLinks,
+  streamingServices,
+  webauthnCredentials,
+  adminSessions
+} from '@shared/schema';
+
+class DbStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const result = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateUserAppleToken(userId: string, token: string): Promise<User | undefined> {
+    const result = await db.update(users).set({ appleMusicToken: token }).where(eq(users.id, userId)).returning();
+    return result[0];
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  async getPlaylist(id: string): Promise<Playlist | undefined> {
+    const result = await db.select().from(playlists).where(eq(playlists.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPlaylistsByUser(userId: string): Promise<Playlist[]> {
+    return db.select().from(playlists).where(eq(playlists.userId, userId));
+  }
+
+  async createPlaylist(playlist: InsertPlaylist): Promise<Playlist> {
+    const result = await db.insert(playlists).values(playlist).returning();
+    return result[0];
+  }
+
+  async updatePlaylist(id: string, data: Partial<Playlist>): Promise<Playlist | undefined> {
+    const result = await db.update(playlists).set(data).where(eq(playlists.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePlaylist(id: string): Promise<boolean> {
+    const result = await db.delete(playlists).where(eq(playlists.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const result = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).limit(1);
+    return result[0];
+  }
+
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const result = await db.insert(subscriptions).values(subscription).returning();
+    return result[0];
+  }
+
+  async updateSubscription(id: string, data: Partial<Subscription>): Promise<Subscription | undefined> {
+    const result = await db.update(subscriptions).set(data).where(eq(subscriptions.id, id)).returning();
+    return result[0];
+  }
+
+  async cancelSubscription(id: string): Promise<boolean> {
+    const result = await db.update(subscriptions).set({ status: 'cancelled' }).where(eq(subscriptions.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getAdminByUsername(username: string): Promise<AdminUser | undefined> {
+    const result = await db.select().from(adminUsers).where(eq(adminUsers.username, username)).limit(1);
+    return result[0];
+  }
+
+  async createAdmin(admin: InsertAdminUser): Promise<AdminUser> {
+    const result = await db.insert(adminUsers).values(admin).returning();
+    return result[0];
+  }
+
+  async getAllReleases(): Promise<Release[]> {
+    return db.select().from(releases).orderBy(releases.createdAt);
+  }
+
+  async getPublishedReleases(status: string = 'published'): Promise<Release[]> {
+    return db.select().from(releases).where(eq(releases.status, status)).orderBy(releases.releaseDate);
+  }
+
+  async getRelease(id: string): Promise<Release | undefined> {
+    const result = await db.select().from(releases).where(eq(releases.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createRelease(release: InsertRelease): Promise<Release> {
+    const result = await db.insert(releases).values(release).returning();
+    return result[0];
+  }
+
+  async updateRelease(id: string, data: Partial<Release>): Promise<Release | undefined> {
+    const result = await db.update(releases).set(data).where(eq(releases.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteRelease(id: string): Promise<boolean> {
+    const result = await db.delete(releases).where(eq(releases.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getAllArtistLinks(): Promise<ArtistRegistrationLink[]> {
+    return db.select().from(artistRegistrationLinks);
+  }
+
+  async getArtistLinkByCode(code: string): Promise<ArtistRegistrationLink | undefined> {
+    const result = await db.select().from(artistRegistrationLinks).where(eq(artistRegistrationLinks.linkCode, code)).limit(1);
+    return result[0];
+  }
+
+  async createArtistLink(link: InsertArtistRegistrationLink): Promise<ArtistRegistrationLink> {
+    const result = await db.insert(artistRegistrationLinks).values(link).returning();
+    return result[0];
+  }
+
+  async markArtistLinkUsed(id: string): Promise<boolean> {
+    const result = await db.update(artistRegistrationLinks).set({ isUsed: true, usedAt: new Date() }).where(eq(artistRegistrationLinks.id, id));
+    return result.rowCount > 0;
+  }
+
+  async deleteArtistLink(id: string): Promise<boolean> {
+    const result = await db.delete(artistRegistrationLinks).where(eq(artistRegistrationLinks.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getAllStreamingServices(): Promise<StreamingService[]> {
+    return db.select().from(streamingServices);
+  }
+
+  async getStreamingService(id: string): Promise<StreamingService | undefined> {
+    const result = await db.select().from(streamingServices).where(eq(streamingServices.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createStreamingService(service: InsertStreamingService): Promise<StreamingService> {
+    const result = await db.insert(streamingServices).values(service).returning();
+    return result[0];
+  }
+
+  async updateStreamingService(id: string, data: Partial<StreamingService>): Promise<StreamingService | undefined> {
+    const result = await db.update(streamingServices).set(data).where(eq(streamingServices.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteStreamingService(id: string): Promise<boolean> {
+    const result = await db.delete(streamingServices).where(eq(streamingServices.id, id));
+    return result.rowCount > 0;
+  }
+
+  async createAdminSession(token: string, username: string): Promise<void> {
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    await db.insert(adminSessions).values({ token, username, expiresAt });
+  }
+
+  async validateAdminSession(token: string): Promise<boolean> {
+    const result = await db.select().from(adminSessions).where(eq(adminSessions.token, token)).limit(1);
+    if (!result[0]) return false;
+    if (new Date() > result[0].expiresAt) {
+      await db.delete(adminSessions).where(eq(adminSessions.token, token));
+      return false;
+    }
+    return true;
+  }
+
+  async invalidateAdminSession(token: string): Promise<void> {
+    await db.delete(adminSessions).where(eq(adminSessions.token, token));
+  }
+
+  async createWebAuthnCredential(credential: InsertWebAuthnCredential): Promise<WebAuthnCredential> {
+    const result = await db.insert(webauthnCredentials).values(credential).returning();
+    return result[0];
+  }
+
+  async getWebAuthnCredential(credentialId: string): Promise<WebAuthnCredential | undefined> {
+    const result = await db.select().from(webauthnCredentials).where(eq(webauthnCredentials.credentialId, credentialId)).limit(1);
+    return result[0];
+  }
+
+  async getWebAuthnCredentialsByUser(userId: string): Promise<WebAuthnCredential[]> {
+    return db.select().from(webauthnCredentials).where(eq(webauthnCredentials.userId, userId));
+  }
+
+  async updateWebAuthnCredential(id: string, data: Partial<WebAuthnCredential>): Promise<WebAuthnCredential | undefined> {
+    const result = await db.update(webauthnCredentials).set(data).where(eq(webauthnCredentials.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWebAuthnCredential(id: string): Promise<boolean> {
+    const result = await db.delete(webauthnCredentials).where(eq(webauthnCredentials.id, id));
+    return result.rowCount > 0;
+  }
+}
+
+export const storage = new DbStorage();
