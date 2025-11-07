@@ -1,5 +1,5 @@
 import { Card } from '@/components/Card';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useMKCatalog } from '@/hooks/useMKCatalog';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr';
@@ -32,10 +32,35 @@ function convertReleaseToMKItem(release: Release): MKMediaItem {
 
 export default function Search() {
   const [location, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [urlKey, setUrlKey] = useState(0); // Force re-render on URL change
   const [searchResults, setSearchResults] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const { searchCatalog } = useMKCatalog();
+
+  // Read search query directly from URL
+  const params = new URLSearchParams(window.location.search);
+  const searchQuery = params.get('q') || '';
+
+  // Listen for URL changes (both pushState and popState)
+  useEffect(() => {
+    const handleUrlChange = () => {
+      setUrlKey(prev => prev + 1); // Force component to re-render
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    
+    // Intercept pushState to detect programmatic navigation
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function(...args) {
+      originalPushState.apply(window.history, args);
+      handleUrlChange();
+    };
+
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.history.pushState = originalPushState;
+    };
+  }, []);
 
   const { data: dbReleases = [] } = useQuery<Release[]>({
     queryKey: ['/api/releases'],
@@ -47,20 +72,14 @@ export default function Search() {
     staleTime: 5 * 60 * 1000,
   });
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1] || '');
-    const q = params.get('q');
-    if (q) {
-      setSearchQuery(q);
-    }
-  }, [location]);
+  const convertedDbReleases = useMemo(() => 
+    dbReleases.map(convertReleaseToMKItem),
+    [dbReleases]
+  );
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      const convertedAllDbReleases = dbReleases.map(convertReleaseToMKItem);
-      setSearchResults({
-        songs: convertedAllDbReleases,
-      });
+      setSearchResults(null);
       return;
     }
 
@@ -76,10 +95,10 @@ export default function Search() {
           release.genre.toLowerCase().includes(query)
         );
         
-        const convertedDbReleases = matchingDbReleases.map(convertReleaseToMKItem);
+        const matchedConvertedDbReleases = matchingDbReleases.map(convertReleaseToMKItem);
         
         setSearchResults({
-          songs: [...convertedDbReleases, ...(results.songs || [])],
+          songs: [...matchedConvertedDbReleases, ...(results.songs || [])],
         });
       } catch (error) {
         console.error('Search failed:', error);
@@ -91,6 +110,12 @@ export default function Search() {
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery, searchCatalog, dbReleases]);
+
+  const displaySongs = searchQuery.trim() 
+    ? (searchResults?.songs || []) 
+    : convertedDbReleases;
+
+  const headingText = searchQuery.trim() ? 'Ergebnisse' : 'Alle Tracks';
 
   return (
     <div className="min-h-screen pb-32">
@@ -106,13 +131,13 @@ export default function Search() {
             <span>Suche läuft...</span>
           </div>
         </div>
-      ) : searchResults && searchResults.songs && searchResults.songs.length > 0 ? (
+      ) : displaySongs.length > 0 ? (
         <section>
           <h2 className="text-subheading font-bold mb-4" data-testid="text-results-tracks">
-            {searchQuery ? 'Ergebnisse' : 'Alle Tracks'}
+            {headingText}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {searchResults.songs.map((song: any) => (
+            {displaySongs.map((song: any) => (
               <Card
                 key={song.id}
                 item={song}
@@ -121,7 +146,7 @@ export default function Search() {
             ))}
           </div>
         </section>
-      ) : searchResults ? (
+      ) : searchQuery.trim() ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground">Keine Ergebnisse für "{searchQuery}"</p>
         </div>
