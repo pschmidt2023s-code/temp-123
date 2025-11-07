@@ -254,8 +254,7 @@ function ReleasesTab() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiRequest('PATCH', `/api/admin/releases/${id}`, { status });
-      return await res.json();
+      return await apiRequest('PATCH', `/api/admin/releases/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/releases'] });
@@ -290,16 +289,18 @@ function ReleasesTab() {
 
       // Prepare release data
       const releaseDateStr = formData.get('releaseDate') + 'T' + formData.get('releaseTime');
+      const preorderDateStr = preorderEnabled && formData.get('preorderDate')
+        ? formData.get('preorderDate') + 'T' + (formData.get('preorderTime') || '00:00')
+        : null;
+
       const releaseData: any = {
         title: formData.get('title'),
         artistName: formData.get('artistName'),
-        releaseDate: new Date(releaseDateStr),
+        releaseDate: new Date(releaseDateStr).toISOString(),
         releaseType: releaseType,
         genre: formData.get('genre'),
         preorderEnabled,
-        preorderDate: preorderEnabled && formData.get('preorderDate') 
-          ? new Date(formData.get('preorderDate') + 'T' + (formData.get('preorderTime') || '00:00'))
-          : null,
+        preorderDate: preorderDateStr ? new Date(preorderDateStr).toISOString() : null,
         previewEnabled,
         previewDurationSeconds: previewEnabled 
           ? parseInt(formData.get('previewDuration') as string)
@@ -314,6 +315,7 @@ function ReleasesTab() {
         status: 'pending',
       };
 
+      console.log('Sending release data:', releaseData);
       createRelease.mutate(releaseData);
     } catch (error: any) {
       toast({
