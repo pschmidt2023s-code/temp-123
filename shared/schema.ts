@@ -207,6 +207,194 @@ export const streamingEvents = pgTable("streaming_events", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+// ========== TIER 1: AI PLAYLISTS & DISCOVERY ==========
+
+export const generatedPlaylists = pgTable("generated_playlists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(), // "Daily Mix 1", "Discover Weekly", "Workout Mix"
+  type: text("type").notNull(), // 'daily_mix', 'discover_weekly', 'mood_based', 'ai_generated'
+  mood: text("mood"), // 'happy', 'sad', 'energetic', 'calm', 'workout', 'focus'
+  tracks: text("tracks").array().notNull(), // Array of MusicKit song IDs
+  coverUrl: text("cover_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // For weekly/daily playlists
+  lastRefreshedAt: timestamp("last_refreshed_at"),
+});
+
+// ========== TIER 1: SOCIAL FEATURES ==========
+
+export const friends = pgTable("friends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  friendId: varchar("friend_id").references(() => users.id).notNull(),
+  status: text("status").notNull().default('pending'), // 'pending', 'accepted', 'blocked'
+  createdAt: timestamp("created_at").defaultNow(),
+  acceptedAt: timestamp("accepted_at"),
+});
+
+export const friendActivity = pgTable("friend_activity", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  trackId: text("track_id").notNull(),
+  trackName: text("track_name").notNull(),
+  artistName: text("artist_name").notNull(),
+  albumArt: text("album_art"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const collaborativePlaylists = pgTable("collaborative_playlists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playlistId: varchar("playlist_id").references(() => playlists.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(), // Collaborator
+  permission: text("permission").notNull().default('edit'), // 'view', 'edit', 'admin'
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const musicStories = pgTable("music_stories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  trackId: text("track_id").notNull(),
+  trackName: text("track_name").notNull(),
+  artistName: text("artist_name").notNull(),
+  albumArt: text("album_art"),
+  caption: text("caption"),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(), // 24 hours
+  viewCount: integer("view_count").default(0),
+});
+
+export const storyViews = pgTable("story_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  storyId: varchar("story_id").references(() => musicStories.id).notNull(),
+  viewerId: varchar("viewer_id").references(() => users.id).notNull(),
+  viewedAt: timestamp("viewed_at").defaultNow(),
+});
+
+// ========== TIER 2: AUDIO SETTINGS ==========
+
+export const audioSettings = pgTable("audio_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  eqPreset: text("eq_preset").default('off'), // 'off', 'rock', 'pop', 'jazz', 'bass_boost', 'treble_boost', 'custom'
+  customEqBands: text("custom_eq_bands"), // JSON: [60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz]
+  crossfadeEnabled: boolean("crossfade_enabled").default(false),
+  crossfadeDuration: integer("crossfade_duration").default(0), // 0-12 seconds
+  normalizationEnabled: boolean("normalization_enabled").default(true),
+  spatialAudioEnabled: boolean("spatial_audio_enabled").default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ========== TIER 2: OFFLINE DOWNLOADS ==========
+
+export const offlineDownloads = pgTable("offline_downloads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  trackId: text("track_id").notNull(),
+  trackName: text("track_name").notNull(),
+  artistName: text("artist_name").notNull(),
+  albumName: text("album_name"),
+  albumArt: text("album_art"),
+  quality: text("quality").notNull(), // 'lossless', 'high', 'medium', 'low'
+  fileSizeBytes: integer("file_size_bytes"),
+  downloadedAt: timestamp("downloaded_at").defaultNow(),
+  lastAccessedAt: timestamp("last_accessed_at"),
+});
+
+// ========== TIER 3: GAMIFICATION & ENGAGEMENT ==========
+
+export const musicQuizzes = pgTable("music_quizzes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  tracks: text("tracks").array().notNull(), // Array of track IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  playCount: integer("play_count").default(0),
+});
+
+export const quizScores = pgTable("quiz_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quizId: varchar("quiz_id").references(() => musicQuizzes.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  score: integer("score").notNull(),
+  maxScore: integer("max_score").notNull(),
+  completedAt: timestamp("completed_at").defaultNow(),
+});
+
+export const leaderboards = pgTable("leaderboards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  artistId: text("artist_id").notNull(),
+  artistName: text("artist_name").notNull(),
+  totalMinutes: integer("total_minutes").notNull(),
+  rank: integer("rank"),
+  period: text("period").notNull(), // 'weekly', 'monthly', 'all_time'
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ========== TIER 3: SMART HOME & CONVENIENCE ==========
+
+export const alarms = pgTable("alarms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: text("name"),
+  time: text("time").notNull(), // "07:30"
+  days: text("days").array().notNull(), // ['mon', 'tue', 'wed', 'thu', 'fri']
+  playlistId: varchar("playlist_id").references(() => playlists.id),
+  trackId: text("track_id"),
+  volume: integer("volume").default(50),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sleepTimers = pgTable("sleep_timers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  durationMinutes: integer("duration_minutes").notNull(), // 15, 30, 45, 60
+  fadeOutMinutes: integer("fade_out_minutes").default(5),
+  startedAt: timestamp("started_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+// ========== BONUS: MONETIZATION ==========
+
+export const giftCards = pgTable("gift_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  tier: text("tier").notNull(), // 'plus', 'premium', 'family'
+  durationMonths: integer("duration_months").notNull(), // 1, 3, 6, 12
+  isRedeemed: boolean("is_redeemed").default(false),
+  redeemedBy: varchar("redeemed_by").references(() => users.id),
+  redeemedAt: timestamp("redeemed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+});
+
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerId: varchar("referrer_id").references(() => users.id).notNull(),
+  referredId: varchar("referred_id").references(() => users.id),
+  referralCode: text("referral_code").notNull().unique(),
+  status: text("status").notNull().default('pending'), // 'pending', 'completed', 'expired'
+  rewardType: text("reward_type").notNull(), // 'free_month', 'discount_percentage'
+  rewardValue: integer("reward_value").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const studentDiscounts = pgTable("student_discounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  verificationMethod: text("verification_method").notNull(), // 'email', 'sheerid', 'manual'
+  studentEmail: text("student_email"),
+  university: text("university"),
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -460,3 +648,71 @@ export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
 // Coupon Schemas
 export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
 export const insertCouponUsageSchema = createInsertSchema(couponUsages).omit({ id: true, usedAt: true });
+
+// ========== NEW FEATURE SCHEMAS ==========
+
+// AI Playlists
+export const insertGeneratedPlaylistSchema = createInsertSchema(generatedPlaylists).omit({ id: true, createdAt: true });
+export type GeneratedPlaylist = typeof generatedPlaylists.$inferSelect;
+export type InsertGeneratedPlaylist = z.infer<typeof insertGeneratedPlaylistSchema>;
+
+// Social Features
+export const insertFriendSchema = createInsertSchema(friends).omit({ id: true, createdAt: true });
+export const insertFriendActivitySchema = createInsertSchema(friendActivity).omit({ id: true, timestamp: true });
+export const insertCollaborativePlaylistSchema = createInsertSchema(collaborativePlaylists).omit({ id: true, addedAt: true });
+export const insertMusicStorySchema = createInsertSchema(musicStories).omit({ id: true, createdAt: true, viewCount: true });
+export const insertStoryViewSchema = createInsertSchema(storyViews).omit({ id: true, viewedAt: true });
+
+export type Friend = typeof friends.$inferSelect;
+export type InsertFriend = z.infer<typeof insertFriendSchema>;
+export type FriendActivity = typeof friendActivity.$inferSelect;
+export type InsertFriendActivity = z.infer<typeof insertFriendActivitySchema>;
+export type CollaborativePlaylist = typeof collaborativePlaylists.$inferSelect;
+export type InsertCollaborativePlaylist = z.infer<typeof insertCollaborativePlaylistSchema>;
+export type MusicStory = typeof musicStories.$inferSelect;
+export type InsertMusicStory = z.infer<typeof insertMusicStorySchema>;
+export type StoryView = typeof storyViews.$inferSelect;
+export type InsertStoryView = z.infer<typeof insertStoryViewSchema>;
+
+// Audio Settings
+export const insertAudioSettingsSchema = createInsertSchema(audioSettings).omit({ id: true, updatedAt: true });
+export type AudioSettings = typeof audioSettings.$inferSelect;
+export type InsertAudioSettings = z.infer<typeof insertAudioSettingsSchema>;
+
+// Offline Downloads
+export const insertOfflineDownloadSchema = createInsertSchema(offlineDownloads).omit({ id: true, downloadedAt: true });
+export type OfflineDownload = typeof offlineDownloads.$inferSelect;
+export type InsertOfflineDownload = z.infer<typeof insertOfflineDownloadSchema>;
+
+// Gamification
+export const insertMusicQuizSchema = createInsertSchema(musicQuizzes).omit({ id: true, createdAt: true, playCount: true });
+export const insertQuizScoreSchema = createInsertSchema(quizScores).omit({ id: true, completedAt: true });
+export const insertLeaderboardSchema = createInsertSchema(leaderboards).omit({ id: true, updatedAt: true });
+
+export type MusicQuiz = typeof musicQuizzes.$inferSelect;
+export type InsertMusicQuiz = z.infer<typeof insertMusicQuizSchema>;
+export type QuizScore = typeof quizScores.$inferSelect;
+export type InsertQuizScore = z.infer<typeof insertQuizScoreSchema>;
+export type Leaderboard = typeof leaderboards.$inferSelect;
+export type InsertLeaderboard = z.infer<typeof insertLeaderboardSchema>;
+
+// Smart Home
+export const insertAlarmSchema = createInsertSchema(alarms).omit({ id: true, createdAt: true });
+export const insertSleepTimerSchema = createInsertSchema(sleepTimers).omit({ id: true, startedAt: true });
+
+export type Alarm = typeof alarms.$inferSelect;
+export type InsertAlarm = z.infer<typeof insertAlarmSchema>;
+export type SleepTimer = typeof sleepTimers.$inferSelect;
+export type InsertSleepTimer = z.infer<typeof insertSleepTimerSchema>;
+
+// Monetization
+export const insertGiftCardSchema = createInsertSchema(giftCards).omit({ id: true, createdAt: true, isRedeemed: true });
+export const insertReferralSchema = createInsertSchema(referrals).omit({ id: true, createdAt: true });
+export const insertStudentDiscountSchema = createInsertSchema(studentDiscounts).omit({ id: true, createdAt: true, isVerified: true });
+
+export type GiftCard = typeof giftCards.$inferSelect;
+export type InsertGiftCard = z.infer<typeof insertGiftCardSchema>;
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type StudentDiscount = typeof studentDiscounts.$inferSelect;
+export type InsertStudentDiscount = z.infer<typeof insertStudentDiscountSchema>;
