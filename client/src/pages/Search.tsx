@@ -20,7 +20,11 @@ function convertReleaseToMKItem(release: Release): MKMediaItem {
         height: 400,
       } : undefined,
       genreNames: [release.genre],
-      releaseDate: release.releaseDate?.toISOString(),
+      releaseDate: release.releaseDate 
+        ? (typeof release.releaseDate === 'string' 
+            ? release.releaseDate 
+            : release.releaseDate.toISOString())
+        : undefined,
     },
   };
 }
