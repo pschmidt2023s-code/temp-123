@@ -89,6 +89,7 @@ export interface IStorage {
   
   // Lyrics
   getLyricsByReleaseId(releaseId: string): Promise<Lyrics | undefined>;
+  getAllLyrics(): Promise<Lyrics[]>;
   createLyrics(lyrics: InsertLyrics): Promise<Lyrics>;
   updateLyrics(id: string, data: Partial<Lyrics>): Promise<Lyrics | undefined>;
   deleteLyrics(id: string): Promise<boolean>;
@@ -797,6 +798,11 @@ class DbStorage implements IStorage {
   async getLyricsByReleaseId(releaseId: string): Promise<Lyrics | undefined> {
     const result = await db.select().from(lyrics).where(eq(lyrics.releaseId, releaseId)).limit(1);
     return result[0];
+  }
+
+  async getAllLyrics(): Promise<Lyrics[]> {
+    const result = await db.select().from(lyrics);
+    return result;
   }
 
   async createLyrics(lyricsData: InsertLyrics): Promise<Lyrics> {

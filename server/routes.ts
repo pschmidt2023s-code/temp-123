@@ -1481,6 +1481,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/admin/lyrics/all', requireAdminAuth, async (req, res) => {
+    try {
+      const allLyrics = await storage.getAllLyrics();
+      res.json(allLyrics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // AI Recommendations Route
+  app.get('/api/ai/recommendations/:userId', async (req, res) => {
+    try {
+      const releases = await storage.getAllReleases();
+      const publishedReleases = releases.filter(r => r.status === 'published');
+      
+      const recommendations = publishedReleases
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 6)
+        .map(release => ({
+          id: release.id,
+          type: 'songs',
+          attributes: {
+            name: release.title,
+            artistName: release.artistName,
+            artwork: release.coverFilePath ? {
+              url: release.coverFilePath,
+              width: 400,
+              height: 400,
+            } : undefined,
+            genreNames: release.genre ? [release.genre] : [],
+            releaseDate: release.releaseDate 
+              ? (typeof release.releaseDate === 'string' 
+                  ? release.releaseDate 
+                  : release.releaseDate.toISOString())
+              : undefined,
+            url: release.audioFilePath || undefined,
+          },
+        }));
+
+      res.json(recommendations);
+    } catch (error) {
+      console.error('AI recommendations error:', error);
+      res.status(500).json({ error: 'Failed to fetch recommendations' });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Setup WebSocket server for Live Music Rooms
