@@ -2,34 +2,14 @@ import { Link, useLocation } from 'wouter';
 import { House, MagnifyingGlass, Books, Plus, Heart, Users } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useToast } from '@/hooks/use-toast';
 
 export function Sidebar() {
   const [location] = useLocation();
   const { subscription } = useSubscription('demo-user');
-  const { toast } = useToast();
 
   const handleFamilyClick = (e: React.MouseEvent) => {
-    if (!subscription) {
-      return;
-    }
-    
-    if (subscription.tier !== 'family') {
-      e.preventDefault();
-      toast({
-        title: "Family-Tier erforderlich",
-        description: "Live Music Rooms sind nur im Family-Abo (€14,99/Monat) verfügbar. Upgrade für synchronisiertes Hören mit bis zu 6 Freunden!",
-        action: (
-          <Button 
-            size="sm" 
-            onClick={() => window.location.href = '/pricing'}
-            data-testid="button-upgrade-to-family"
-          >
-            Jetzt upgraden
-          </Button>
-        ),
-      });
-    }
+    // Direct navigation to pricing or live-rooms based on subscription
+    // No toast message needed
   };
 
   const mainNav = [

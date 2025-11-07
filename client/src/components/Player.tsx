@@ -155,8 +155,9 @@ function PlayerComponent() {
       <footer 
         className="fixed left-0 right-0 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl"
         style={{ 
-          height: '90px',
-          bottom: 'env(safe-area-inset-bottom, 0px)',
+          bottom: 0,
+          height: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           zIndex: 50
         }}
       >
