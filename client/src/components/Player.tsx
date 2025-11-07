@@ -314,31 +314,53 @@ function PlayerComponent() {
 
         {/* Center: Playback Controls */}
         <div className="flex-1 flex flex-col items-center gap-1 md:gap-2 max-w-full md:max-w-[40%] w-full">
-          {/* Mobile: Track info on top */}
-          <div className="md:hidden flex items-center gap-2 w-full px-2">
-            {artwork && (
-              <button
-                onClick={() => setShowFullscreen(true)}
-                className="shrink-0 transition-transform active:scale-95"
-                data-testid="button-open-fullscreen-mobile"
-              >
-                <img
-                  src={artwork}
-                  alt={currentTrack.attributes.name}
-                  className="w-10 h-10 rounded object-cover cursor-pointer"
-                />
-              </button>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-foreground truncate">
-                {currentTrack.attributes.name}
+          {/* Mobile: Track info & Timeline on top */}
+          <div className="md:hidden w-full px-2 space-y-2">
+            {/* Cover & Track Info */}
+            <div className="flex items-center gap-3">
+              {artwork && (
+                <button
+                  onClick={() => setShowFullscreen(true)}
+                  className="shrink-0 transition-transform active:scale-95"
+                  data-testid="button-open-fullscreen-mobile"
+                >
+                  <img
+                    src={artwork}
+                    alt={currentTrack.attributes.name}
+                    className="w-12 h-12 rounded object-cover cursor-pointer"
+                  />
+                </button>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground truncate">
+                  {currentTrack.attributes.name}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {currentTrack.attributes.artistName}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground truncate">
-                {currentTrack.attributes.artistName}
-              </div>
+            </div>
+            
+            {/* Timeline direkt über Controls */}
+            <div className="w-full flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-8 text-left" data-testid="text-current-time-mobile">
+                {formatTime(currentTime)}
+              </span>
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={([value]) => handleSeek(value)}
+                className="flex-1"
+                data-testid="slider-progress"
+              />
+              <span className="text-[10px] text-muted-foreground w-8 text-right" data-testid="text-duration-mobile">
+                {formatTime(duration)}
+              </span>
             </div>
           </div>
           
+          {/* Controls */}
           <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
@@ -363,10 +385,10 @@ function PlayerComponent() {
             <Button
               size="icon"
               onClick={handlePlayPause}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-8 h-8 rounded-full play-button-scale"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 md:w-8 md:h-8 rounded-full play-button-scale"
               data-testid="button-play-pause"
             >
-              {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+              {isPlaying ? <Pause size={24} weight="fill" /> : <Play size={24} weight="fill" />}
             </Button>
 
             <Button
@@ -393,8 +415,8 @@ function PlayerComponent() {
             </Button>
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-full flex items-center gap-2">
+          {/* Desktop Progress Bar */}
+          <div className="hidden md:flex w-full items-center gap-2">
             <span className="text-xs text-muted-foreground w-10 text-right" data-testid="text-current-time">
               {formatTime(currentTime)}
             </span>
