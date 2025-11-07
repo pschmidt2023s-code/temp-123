@@ -103,6 +103,17 @@ async function requireAdminAuth(req: Request, res: Response, next: NextFunction)
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Public Releases Route (for published releases)
+  app.get('/api/releases', async (req, res) => {
+    try {
+      const status = req.query.status as string || 'published';
+      const releases = await storage.getPublishedReleases(status);
+      res.json(releases);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // User routes
   app.get('/api/user/:id', async (req, res) => {
     try {

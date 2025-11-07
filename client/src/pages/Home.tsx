@@ -4,7 +4,26 @@ import { demoAlbums, demoPlaylists, demoTracks } from '@/lib/demo-data';
 import { usePlayer } from '@/store/usePlayer';
 import { musicKit } from '@/lib/musickit';
 import { useState, useEffect } from 'react';
-import type { MKMediaItem } from '@shared/schema';
+import type { MKMediaItem, Release } from '@shared/schema';
+import { useQuery } from '@tanstack/react-query';
+
+function convertReleaseToMKItem(release: Release): MKMediaItem {
+  return {
+    id: release.id!,
+    type: 'albums',
+    attributes: {
+      name: release.title,
+      artistName: release.artistName,
+      artwork: release.coverFilePath ? {
+        url: release.coverFilePath,
+        width: 400,
+        height: 400,
+      } : undefined,
+      genreNames: [release.genre],
+      releaseDate: release.releaseDate?.toISOString(),
+    },
+  };
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -14,6 +33,16 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<MKMediaItem[]>([]);
   const [newReleases, setNewReleases] = useState<MKMediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { data: dbReleases = [] } = useQuery<Release[]>({
+    queryKey: ['/api/releases'],
+    queryFn: async () => {
+      const response = await fetch('/api/releases?status=published');
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,6 +91,16 @@ export default function Home() {
     
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (dbReleases.length > 0) {
+      const convertedDbReleases = dbReleases.map(convertReleaseToMKItem);
+      setNewReleases(prev => {
+        const mkReleases = prev.filter(item => !convertedDbReleases.find(r => r.id === item.id));
+        return [...convertedDbReleases, ...mkReleases];
+      });
+    }
+  }, [dbReleases]);
 
   const handleItemClick = (item: MKMediaItem) => {
     if (item.type === 'albums') {

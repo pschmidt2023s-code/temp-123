@@ -4,6 +4,26 @@ import { Badge } from '@/components/ui/badge';
 import { useLocation } from 'wouter';
 import { useMKCatalog } from '@/hooks/useMKCatalog';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr';
+import { useQuery } from '@tanstack/react-query';
+import type { Release, MKMediaItem } from '@shared/schema';
+
+function convertReleaseToMKItem(release: Release): MKMediaItem {
+  return {
+    id: release.id!,
+    type: 'albums',
+    attributes: {
+      name: release.title,
+      artistName: release.artistName,
+      artwork: release.coverFilePath ? {
+        url: release.coverFilePath,
+        width: 400,
+        height: 400,
+      } : undefined,
+      genreNames: [release.genre],
+      releaseDate: release.releaseDate?.toISOString(),
+    },
+  };
+}
 
 const categories = [
   { id: 'all', name: 'Alle', color: 'bg-gradient-to-br from-purple-600 to-blue-600' },
@@ -24,6 +44,16 @@ export default function Search() {
   const [isSearching, setIsSearching] = useState(false);
   const { searchCatalog } = useMKCatalog();
 
+  const { data: dbReleases = [] } = useQuery<Release[]>({
+    queryKey: ['/api/releases'],
+    queryFn: async () => {
+      const response = await fetch('/api/releases?status=published');
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     const params = new URLSearchParams(location.split('?')[1] || '');
     const q = params.get('q');
@@ -42,7 +72,21 @@ export default function Search() {
       setIsSearching(true);
       try {
         const results = await searchCatalog(searchQuery);
-        setSearchResults(results);
+        
+        const query = searchQuery.toLowerCase();
+        const matchingDbReleases = dbReleases.filter(release =>
+          release.title.toLowerCase().includes(query) ||
+          release.artistName.toLowerCase().includes(query) ||
+          release.genre.toLowerCase().includes(query)
+        );
+        
+        const convertedDbReleases = matchingDbReleases.map(convertReleaseToMKItem);
+        
+        setSearchResults({
+          songs: results.songs || [],
+          albums: [...convertedDbReleases, ...(results.albums || [])],
+          playlists: results.playlists || [],
+        });
       } catch (error) {
         console.error('Search failed:', error);
         setSearchResults({ songs: [], albums: [], playlists: [] });
@@ -52,7 +96,7 @@ export default function Search() {
     }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, searchCatalog]);
+  }, [searchQuery, searchCatalog, dbReleases]);
 
   return (
     <div className="min-h-screen pb-32">

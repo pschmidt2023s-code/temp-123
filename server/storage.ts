@@ -42,6 +42,7 @@ export interface IStorage {
   createAdmin(admin: InsertAdminUser): Promise<AdminUser>;
   
   getAllReleases(): Promise<Release[]>;
+  getPublishedReleases(status: string): Promise<Release[]>;
   getRelease(id: string): Promise<Release | undefined>;
   createRelease(release: InsertRelease): Promise<Release>;
   updateRelease(id: string, data: Partial<Release>): Promise<Release | undefined>;
@@ -257,6 +258,14 @@ export class MemStorage implements IStorage {
     return Array.from(this.releases.values()).sort(
       (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
     );
+  }
+
+  async getPublishedReleases(status: string = 'published'): Promise<Release[]> {
+    return Array.from(this.releases.values())
+      .filter(release => release.status === status)
+      .sort(
+        (a, b) => (b.releaseDate?.getTime() || 0) - (a.releaseDate?.getTime() || 0)
+      );
   }
 
   async getRelease(id: string): Promise<Release | undefined> {
