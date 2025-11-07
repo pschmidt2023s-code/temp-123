@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple, Quotes } from '@phosphor-icons/react';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Release, ArtistRegistrationLink, StreamingService, Lyrics } from '@shared/schema';
+import type { Release, ArtistRegistrationLink, StreamingService, Lyrics, Coupon } from '@shared/schema';
 import { releaseTypeEnum } from '@shared/schema';
 import { format } from 'date-fns';
+import { Ticket } from '@phosphor-icons/react';
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -61,7 +62,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="releases" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="releases" data-testid="tab-releases">
               <MusicNotes size={20} weight="bold" className="mr-2" />
               Releases
@@ -69,6 +70,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="lyrics" data-testid="tab-lyrics">
               <Quotes size={20} weight="bold" className="mr-2" />
               Lyrics
+            </TabsTrigger>
+            <TabsTrigger value="coupons" data-testid="tab-coupons">
+              <Ticket size={20} weight="bold" className="mr-2" />
+              Gutscheine
             </TabsTrigger>
             <TabsTrigger value="artists" data-testid="tab-artists">
               <LinkIcon size={20} weight="bold" className="mr-2" />
@@ -90,6 +95,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="lyrics">
             <LyricsTab />
+          </TabsContent>
+
+          <TabsContent value="coupons">
+            <CouponsTab />
           </TabsContent>
 
           <TabsContent value="artists">
@@ -408,6 +417,238 @@ function UsersTab() {
                         }
                       }}
                       data-testid={`button-delete-user-${user.id}`}
+                    >
+                      <Trash size={18} weight="bold" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CouponsTab() {
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { data: coupons = [], isLoading } = useQuery<Coupon[]>({
+    queryKey: ['/api/admin/coupons'],
+  });
+
+  const createCoupon = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('/api/admin/coupons', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
+      setIsDialogOpen(false);
+      toast({
+        title: "Gutschein erstellt",
+        description: "Der Gutscheincode wurde erfolgreich erstellt",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Gutschein konnte nicht erstellt werden",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateCoupon = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Coupon> }) => {
+      return apiRequest(`/api/admin/coupons/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
+      toast({
+        title: "Aktualisiert",
+        description: "Gutschein wurde aktualisiert",
+      });
+    },
+  });
+
+  const deleteCoupon = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/admin/coupons/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
+      toast({
+        title: "Gelöscht",
+        description: "Gutschein wurde gelöscht",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const applicableTiers = [];
+    if (formData.get('tier_plus')) applicableTiers.push('plus');
+    if (formData.get('tier_premium')) applicableTiers.push('premium');
+    if (formData.get('tier_family')) applicableTiers.push('family');
+
+    const data = {
+      code: formData.get('code') as string,
+      discountType: formData.get('discountType') as string,
+      discountValue: parseInt(formData.get('discountValue') as string),
+      maxUses: parseInt(formData.get('maxUses') as string),
+      validUntil: formData.get('validUntil') ? new Date(formData.get('validUntil') as string) : null,
+      applicableTiers: applicableTiers.length > 0 ? applicableTiers : null,
+      isActive: true,
+    };
+
+    createCoupon.mutate(data);
+  };
+
+  const formatDiscount = (coupon: Coupon) => {
+    if (coupon.discountType === 'percentage') {
+      return `${coupon.discountValue}%`;
+    }
+    return `${(coupon.discountValue / 100).toFixed(2)}€`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Gutscheine</CardTitle>
+            <CardDescription>Verwalten Sie Rabatt-Gutscheine für Abonnements</CardDescription>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-coupon">
+                <Plus size={20} weight="bold" className="mr-2" />
+                Gutschein erstellen
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Neuer Gutschein</DialogTitle>
+                <DialogDescription>
+                  Erstellen Sie einen neuen Rabatt-Gutschein
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Gutscheincode *</Label>
+                  <Input id="code" name="code" required placeholder="SOMMER2025" data-testid="input-coupon-code" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="discountType">Rabatt-Typ *</Label>
+                    <Select name="discountType" defaultValue="percentage" required>
+                      <SelectTrigger data-testid="select-discount-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">Prozent (%)</SelectItem>
+                        <SelectItem value="fixed">Festbetrag (€)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discountValue">Rabatt-Wert *</Label>
+                    <Input id="discountValue" name="discountValue" type="number" required placeholder="10" data-testid="input-discount-value" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxUses">Max. Verwendungen *</Label>
+                  <Input id="maxUses" name="maxUses" type="number" required defaultValue="1" data-testid="input-max-uses" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="validUntil">Gültig bis</Label>
+                  <Input id="validUntil" name="validUntil" type="datetime-local" data-testid="input-valid-until" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gültig für Pläne</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tier_plus" name="tier_plus" data-testid="checkbox-tier-plus" />
+                      <Label htmlFor="tier_plus" className="font-normal">Plus (4,99€)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tier_premium" name="tier_premium" data-testid="checkbox-tier-premium" />
+                      <Label htmlFor="tier_premium" className="font-normal">Premium (9,99€)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tier_family" name="tier_family" data-testid="checkbox-tier-family" />
+                      <Label htmlFor="tier_family" className="font-normal">Family (14,99€)</Label>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leer lassen für alle Pläne</p>
+                </div>
+                <Button type="submit" className="w-full" disabled={createCoupon.isPending} data-testid="button-submit-coupon">
+                  {createCoupon.isPending ? 'Erstelle...' : 'Gutschein erstellen'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Lädt Gutscheine...</div>
+        ) : coupons.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">Keine Gutscheine vorhanden</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Code</TableHead>
+                <TableHead>Rabatt</TableHead>
+                <TableHead>Verwendet</TableHead>
+                <TableHead>Gültig bis</TableHead>
+                <TableHead>Pläne</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {coupons.map((coupon) => (
+                <TableRow key={coupon.id}>
+                  <TableCell className="font-mono font-medium">{coupon.code}</TableCell>
+                  <TableCell>{formatDiscount(coupon)}</TableCell>
+                  <TableCell>{coupon.usedCount || 0} / {coupon.maxUses || '∞'}</TableCell>
+                  <TableCell>
+                    {coupon.validUntil ? format(new Date(coupon.validUntil), 'dd.MM.yyyy HH:mm') : '—'}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {coupon.applicableTiers && coupon.applicableTiers.length > 0 
+                      ? coupon.applicableTiers.join(', ') 
+                      : 'Alle'}
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={coupon.isActive || false}
+                      onCheckedChange={(checked) => 
+                        updateCoupon.mutate({ id: coupon.id, data: { isActive: !!checked } })
+                      }
+                      data-testid={`checkbox-coupon-active-${coupon.id}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteCoupon.mutate(coupon.id)}
+                      data-testid={`button-delete-coupon-${coupon.id}`}
                     >
                       <Trash size={18} weight="bold" />
                     </Button>

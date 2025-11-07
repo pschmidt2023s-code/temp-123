@@ -1601,6 +1601,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PayPal Payment Routes (Referenced from blueprint:javascript_paypal)
+  app.get("/paypal/setup", async (req, res) => {
+    await loadPaypalDefault(req, res);
+  });
+
+  app.post("/paypal/order", async (req, res) => {
+    await createPaypalOrder(req, res);
+  });
+
+  app.post("/paypal/order/:orderID/capture", async (req, res) => {
+    await capturePaypalOrder(req, res);
+  });
+
   // AI Recommendations Route
   app.get('/api/ai/recommendations/:userId', async (req, res) => {
     try {
