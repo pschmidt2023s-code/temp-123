@@ -1153,9 +1153,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/artist-register/:code', async (req, res) => {
+  app.get('/api/artist-register/verify/:code', async (req, res) => {
     try {
       const link = await storage.getArtistLinkByCode(req.params.code);
+      if (!link) {
+        return res.status(404).json({ error: 'Invalid registration link' });
+      }
+      
+      res.json(link);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/artist-register', async (req, res) => {
+    try {
+      const validation = z.object({
+        registrationCode: z.string().min(1, 'Registration code is required'),
+        username: z.string().min(3, 'Username must be at least 3 characters').max(50),
+        password: z.string().min(8, 'Password must be at least 8 characters'),
+        artistName: z.string().min(1, 'Artist name is required').max(100),
+        bio: z.string().max(500).nullable().optional(),
+      }).safeParse(req.body);
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: validation.error.errors[0]?.message || 'Invalid input data',
+          details: validation.error 
+        });
+      }
+
+      const { registrationCode, username, password, artistName, bio } = validation.data;
+      
+      const link = await storage.getArtistLinkByCode(registrationCode);
       if (!link) {
         return res.status(404).json({ error: 'Invalid registration link' });
       }
@@ -1167,23 +1197,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (new Date() > link.expiresAt) {
         return res.status(410).json({ error: 'Registration link expired' });
       }
-      
-      res.json(link);
-    } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
-  app.post('/api/artist-register/:code/use', async (req, res) => {
-    try {
-      const link = await storage.getArtistLinkByCode(req.params.code);
-      if (!link) {
-        return res.status(404).json({ error: 'Invalid registration link' });
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(409).json({ error: 'Username already exists' });
       }
-      
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        isArtist: true,
+      });
+
+      const artistProfile = await storage.createArtistProfile({
+        userId: user.id,
+        artistName,
+        bio: bio || null,
+        isVerified: false,
+      });
+
       await storage.markArtistLinkUsed(link.id);
-      res.json({ success: true, message: 'Registration completed' });
+
+      res.json({ 
+        success: true, 
+        userId: user.id,
+        artistProfileId: artistProfile.id 
+      });
     } catch (error) {
+      console.error('Artist registration error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
