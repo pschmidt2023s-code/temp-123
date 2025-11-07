@@ -53,17 +53,11 @@ function PlayerComponent() {
     if (!audioRef.current || !isDBRelease || !currentTrack?.attributes?.url) return;
     
     const audio = audioRef.current;
-    const wasPlaying = isPlaying;
-    
     audio.src = currentTrack.attributes.url;
     audio.load();
     
-    if (wasPlaying) {
-      audio.play().catch(error => {
-        console.warn('HTML5 Audio autoplay failed:', error);
-      });
-    }
-  }, [currentIndex, currentTrack, isDBRelease, isPlaying]);
+    setCurrentTime(0);
+  }, [currentIndex, currentTrack, isDBRelease, setCurrentTime]);
 
   useEffect(() => {
     if (!audioRef.current || !isDBRelease) return;
@@ -156,11 +150,15 @@ function PlayerComponent() {
   };
 
   const handleAudioPlay = () => {
-    play();
+    if (!isPlaying) {
+      play();
+    }
   };
 
   const handleAudioPause = () => {
-    pause();
+    if (isPlaying) {
+      pause();
+    }
   };
 
   const formatTime = (ms: number) => {
@@ -170,18 +168,24 @@ function PlayerComponent() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    if (!audioRef.current || !isDBRelease) return;
+    
+    if (isPlaying) {
+      audioRef.current.play().catch(error => {
+        console.warn('HTML5 Audio play failed:', error);
+      });
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, isDBRelease]);
+
   const handlePlayPause = async () => {
-    if (isDBRelease && audioRef.current) {
+    if (isDBRelease) {
       if (isPlaying) {
-        audioRef.current.pause();
         pause();
       } else {
-        try {
-          await audioRef.current.play();
-          play();
-        } catch (error) {
-          console.warn('HTML5 Audio play failed:', error);
-        }
+        play();
       }
     } else {
       if (isPlaying) {
