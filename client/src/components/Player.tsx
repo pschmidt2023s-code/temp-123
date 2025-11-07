@@ -314,10 +314,10 @@ function PlayerComponent() {
 
         {/* Center: Playback Controls */}
         <div className="flex-1 flex flex-col items-center gap-1 md:gap-2 max-w-full md:max-w-[40%] w-full">
-          {/* Mobile: Track info & Timeline on top */}
-          <div className="md:hidden w-full px-2 space-y-2">
-            {/* Cover & Track Info */}
-            <div className="flex items-center gap-3">
+          {/* Mobile: Cover links, Timeline rechts, alles über Controls */}
+          <div className="md:hidden w-full px-2">
+            <div className="flex items-center gap-3 mb-1">
+              {/* Cover links */}
               {artwork && (
                 <button
                   onClick={() => setShowFullscreen(true)}
@@ -327,36 +327,38 @@ function PlayerComponent() {
                   <img
                     src={artwork}
                     alt={currentTrack.attributes.name}
-                    className="w-12 h-12 rounded object-cover cursor-pointer"
+                    className="w-14 h-14 rounded object-cover cursor-pointer"
                   />
                 </button>
               )}
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate">
-                  {currentTrack.attributes.name}
+              
+              {/* Timeline rechts daneben */}
+              <div className="flex-1 flex flex-col gap-1">
+                <div className="flex flex-col">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {currentTrack.attributes.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {currentTrack.attributes.artistName}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {currentTrack.attributes.artistName}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground" data-testid="text-current-time-mobile">
+                    {formatTime(currentTime)}
+                  </span>
+                  <Slider
+                    value={[currentTime]}
+                    max={duration || 100}
+                    step={1}
+                    onValueChange={([value]) => handleSeek(value)}
+                    className="flex-1"
+                    data-testid="slider-progress"
+                  />
+                  <span className="text-[10px] text-muted-foreground" data-testid="text-duration-mobile">
+                    {formatTime(duration)}
+                  </span>
                 </div>
               </div>
-            </div>
-            
-            {/* Timeline direkt über Controls */}
-            <div className="w-full flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-8 text-left" data-testid="text-current-time-mobile">
-                {formatTime(currentTime)}
-              </span>
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={1}
-                onValueChange={([value]) => handleSeek(value)}
-                className="flex-1"
-                data-testid="slider-progress"
-              />
-              <span className="text-[10px] text-muted-foreground w-8 text-right" data-testid="text-duration-mobile">
-                {formatTime(duration)}
-              </span>
             </div>
           </div>
           
