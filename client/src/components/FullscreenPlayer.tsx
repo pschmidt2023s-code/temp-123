@@ -14,7 +14,7 @@ import {
   Queue as QueueIcon,
   Quotes,
   ShareNetwork,
-  PlaylistPlus,
+  ListPlus,
   Radio,
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
@@ -266,7 +266,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
                     }}
                     data-testid="menu-add-to-playlist"
                   >
-                    <PlaylistPlus size={18} weight="bold" className="mr-2" />
+                    <ListPlus size={18} weight="bold" className="mr-2" />
                     Zur Playlist hinzufügen
                   </DropdownMenuItem>
                   <DropdownMenuItem
