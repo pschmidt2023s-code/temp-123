@@ -290,6 +290,7 @@ export interface MKMediaItem {
     genreNames?: string[];
     releaseDate?: string;
     trackNumber?: number;
+    url?: string;
   };
   relationships?: any;
 }

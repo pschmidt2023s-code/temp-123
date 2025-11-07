@@ -13,7 +13,7 @@ import {
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
 import { LyricsOverlay } from './LyricsOverlay';
@@ -38,42 +38,128 @@ function PlayerComponent() {
     setVolume,
     seek,
     setDuration,
+    setCurrentTime,
   } = usePlayer();
 
   const { seekToTime, skipToNext, skipToPrevious } = useMKPlayback();
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+
+  const currentTrack = queue[currentIndex];
+  const isDBRelease = currentTrack?.attributes?.url ? true : false;
+
+  useEffect(() => {
+    if (!audioRef.current || !isDBRelease || !currentTrack?.attributes?.url) return;
+    
+    const audio = audioRef.current;
+    audio.src = currentTrack.attributes.url;
+    audio.load();
+    
+    if (isPlaying) {
+      audio.play().catch(error => {
+        console.warn('HTML5 Audio autoplay failed:', error);
+      });
+    }
+  }, [currentIndex, currentTrack, isDBRelease]);
+
+  useEffect(() => {
+    if (!audioRef.current || !isDBRelease) return;
+    audioRef.current.volume = volume / 100;
+  }, [volume, isDBRelease]);
 
   useEffect(() => {
     if (queue[currentIndex]) {
       const track = queue[currentIndex];
-      const trackDuration = track.attributes.durationInMillis || 0;
-      setDuration(trackDuration);
+      if (!isDBRelease) {
+        const trackDuration = track.attributes.durationInMillis || 0;
+        setDuration(trackDuration);
+      }
     }
-  }, [currentIndex, queue, setDuration]);
+  }, [currentIndex, queue, setDuration, isDBRelease]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    if (isDBRelease) return;
+
+    let animationFrameId: number | null = null;
+    let lastUpdateTime = performance.now();
+
+    const updateProgress = (currentTime: number) => {
+      const { currentTime: storeCurrentTime, duration, repeat } = usePlayer.getState();
+      const now = performance.now();
+      const deltaTime = now - lastUpdateTime;
+      
+      if (deltaTime >= 1000) {
+        const newTime = storeCurrentTime + 1000;
+        
+        if (newTime < duration) {
+          usePlayer.getState().setCurrentTime(newTime);
+        } else if (newTime >= duration && storeCurrentTime < duration) {
+          usePlayer.getState().setCurrentTime(duration);
+          
+          if (repeat === 'one') {
+            usePlayer.getState().setCurrentTime(0);
+          } else if (repeat === 'all') {
+            usePlayer.getState().next();
+          } else {
+            usePlayer.getState().pause();
+            usePlayer.getState().next();
+          }
+        }
+        
+        lastUpdateTime = now;
+      }
+      
+      if (isPlaying) {
+        animationFrameId = requestAnimationFrame(updateProgress);
+      }
+    };
 
     if (isPlaying && duration > 0) {
-      interval = setInterval(() => {
-        const { currentTime, duration } = usePlayer.getState();
-        if (currentTime < duration) {
-          usePlayer.getState().setCurrentTime(currentTime + 1000);
-        } else {
-          usePlayer.getState().next();
-        }
-      }, 1000);
+      lastUpdateTime = performance.now();
+      animationFrameId = requestAnimationFrame(updateProgress);
     }
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isPlaying, duration]);
+  }, [isPlaying, duration, isDBRelease]);
 
-  const currentTrack = queue[currentIndex];
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime * 1000);
+    }
+  };
+
+  const handleAudioLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration * 1000);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    if (repeat === 'one') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play();
+      }
+    } else if (repeat === 'all') {
+      next();
+    } else {
+      pause();
+      next();
+    }
+  };
+
+  const handleAudioPlay = () => {
+    play();
+  };
+
+  const handleAudioPause = () => {
+    pause();
+  };
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -83,52 +169,79 @@ function PlayerComponent() {
   };
 
   const handlePlayPause = async () => {
-    if (isPlaying) {
-      pause();
-      try {
-        await musicKit.pause();
-      } catch (error) {
-        console.warn('MusicKit pause failed, using demo mode:', error);
+    if (isDBRelease && audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        pause();
+      } else {
+        try {
+          await audioRef.current.play();
+          play();
+        } catch (error) {
+          console.warn('HTML5 Audio play failed:', error);
+        }
       }
     } else {
-      play();
-      try {
-        if (currentTrack) {
-          await musicKit.play(currentTrack);
+      if (isPlaying) {
+        pause();
+        try {
+          await musicKit.pause();
+        } catch (error) {
+          console.warn('MusicKit pause failed, using demo mode:', error);
         }
-      } catch (error) {
-        console.warn('MusicKit play failed, using demo mode:', error);
+      } else {
+        play();
+        try {
+          if (currentTrack) {
+            await musicKit.play(currentTrack);
+          }
+        } catch (error) {
+          console.warn('MusicKit play failed, using demo mode:', error);
+        }
       }
     }
   };
 
   const handleNext = async () => {
-    try {
-      await skipToNext();
+    if (isDBRelease) {
       next();
-    } catch (error) {
-      console.warn('MusicKit skip failed, using demo mode:', error);
-      next();
+    } else {
+      try {
+        await skipToNext();
+        next();
+      } catch (error) {
+        console.warn('MusicKit skip failed, using demo mode:', error);
+        next();
+      }
     }
   };
 
   const handlePrevious = async () => {
-    try {
-      await skipToPrevious();
+    if (isDBRelease) {
       previous();
-    } catch (error) {
-      console.warn('MusicKit skip failed, using demo mode:', error);
-      previous();
+    } else {
+      try {
+        await skipToPrevious();
+        previous();
+      } catch (error) {
+        console.warn('MusicKit skip failed, using demo mode:', error);
+        previous();
+      }
     }
   };
 
   const handleSeek = async (time: number) => {
-    try {
-      await seekToTime(time);
+    if (isDBRelease && audioRef.current) {
+      audioRef.current.currentTime = time / 1000;
       seek(time);
-    } catch (error) {
-      console.warn('MusicKit seek failed, using demo mode:', error);
-      seek(time);
+    } else {
+      try {
+        await seekToTime(time);
+        seek(time);
+      } catch (error) {
+        console.warn('MusicKit seek failed, using demo mode:', error);
+        seek(time);
+      }
     }
   };
 
@@ -142,6 +255,16 @@ function PlayerComponent() {
 
   return (
     <>
+      <audio
+        ref={audioRef}
+        style={{ display: 'none' }}
+        onTimeUpdate={handleAudioTimeUpdate}
+        onLoadedMetadata={handleAudioLoadedMetadata}
+        onEnded={handleAudioEnded}
+        onPlay={handleAudioPlay}
+        onPause={handleAudioPause}
+      />
+      
       {showLyrics && currentTrack && (
         <LyricsOverlay
           songId={currentTrack.id}
@@ -153,12 +276,11 @@ function PlayerComponent() {
       )}
       
       <footer 
-        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl md:border-t border-border"
+        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl border-t border-border"
         style={{ 
-          top: 'calc(64px + env(safe-area-inset-top, 0px))',
-          bottom: 'auto',
+          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           height: '90px',
-          zIndex: 50
+          zIndex: 70
         }}
         data-testid="player-bar"
       >

@@ -89,7 +89,7 @@ function App() {
               className="px-4 md:px-8"
               style={{ 
                 paddingTop: 'calc(154px)',
-                paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))'
+                paddingBottom: 'calc(90px + 64px + env(safe-area-inset-bottom, 0px))'
               }}
             >
               <Router />
