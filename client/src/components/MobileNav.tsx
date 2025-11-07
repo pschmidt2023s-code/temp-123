@@ -49,8 +49,7 @@ export function MobileNav() {
       className="md:hidden fixed left-0 right-0 border-t border-border bg-background/95 backdrop-blur-lg shadow-lg"
       style={{ 
         height: '64px',
-        bottom: '90px',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
         zIndex: 60
       }}
     >
@@ -71,7 +70,7 @@ export function MobileNav() {
                 <span className="text-[10px] font-medium">{item.label}</span>
                 {item.showBadge && (
                   <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[8px] font-bold bg-primary text-primary-foreground rounded-full">
-                    Fam
+                    Familie
                   </span>
                 )}
               </button>

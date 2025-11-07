@@ -267,13 +267,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If upgrading existing subscription
       if (isUpgrade && user.stripeSubscriptionId) {
         try {
-          // Get current subscription
-          const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+          // Get current subscription from storage
+          const currentSubscription = await storage.getUserSubscription(userId);
+          if (!currentSubscription) {
+            throw new Error('No active subscription found in storage');
+          }
+
+          // Get current subscription from Stripe
+          const stripeSubscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
           
           // Update subscription with new price (proration enabled by default)
           const updatedSubscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
             items: [{
-              id: subscription.items.data[0].id,
+              id: stripeSubscription.items.data[0].id,
               price: priceId,
             }],
             proration_behavior: 'create_prorations', // Charge/credit difference immediately
@@ -283,8 +289,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
           });
 
-          // Update subscription tier in storage
-          await storage.updateSubscription(userId, { 
+          // Update subscription tier in storage using subscription ID
+          await storage.updateSubscription(currentSubscription.id, { 
             tier,
             status: 'active',
           });
