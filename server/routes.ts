@@ -108,6 +108,21 @@ async function requireAdminAuth(req: Request, res: Response, next: NextFunction)
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Initialize demo user on startup
+  try {
+    const demoUser = await storage.getUser('demo-user');
+    if (!demoUser) {
+      await storage.createUser({
+        id: 'demo-user',
+        username: 'Demo User',
+        email: 'demo@glassbeats.app',
+      });
+      console.log('Demo user created successfully');
+    }
+  } catch (error) {
+    console.error('Failed to initialize demo user:', error);
+  }
+  
   // Public Releases Route (for published releases)
   app.get('/api/releases', async (req, res) => {
     try {
@@ -871,12 +886,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid credential' });
       }
 
-      // @ts-expect-error - SimpleWebAuthn v11+ authenticator structure changed
       const verification = await verifyAuthenticationResponse({
         response: response as AuthenticationResponseJSON,
         expectedChallenge: response.challenge || '',
         expectedOrigin: process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000',
         expectedRPID: new URL(process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000').hostname,
+        // @ts-expect-error - SimpleWebAuthn v11+ renamed authenticator param
         authenticator: {
           credentialPublicKey: Buffer.from(credential.credentialPublicKey, 'base64'),
           credentialID: Buffer.from(credential.credentialId, 'base64'),
@@ -1213,7 +1228,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser({
         username,
         passwordHash: hashedPassword,
-        isArtist: true,
       });
 
       const artistProfile = await storage.createArtistProfile({
@@ -1310,7 +1324,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/settings/:userId', async (req, res) => {
     try {
-      const settings = await storage.updateUserSettings(req.params.userId, req.body);
+      // Validate with partial schema to allow partial updates
+      const validation = insertUserSettingsSchema.omit({ userId: true }).partial().safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: 'Invalid settings data',
+          details: validation.error 
+        });
+      }
+      
+      const settings = await storage.updateUserSettings(req.params.userId, validation.data);
+      
+      if (!settings) {
+        // Settings don't exist yet, create them
+        const newSettings = await storage.createUserSettings({
+          userId: req.params.userId,
+          ...validation.data,
+        });
+        return res.json(newSettings);
+      }
+      
       res.json(settings);
     } catch (error) {
       console.error('Settings update error:', error);
