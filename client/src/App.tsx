@@ -18,6 +18,8 @@ import Pricing from "@/pages/Pricing";
 import LiveRooms from "@/pages/LiveRooms";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -26,20 +28,23 @@ import { useLocation } from "wouter";
 function Router() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith('/admin');
+  const isAuthRoute = location === '/login' || location === '/register';
 
   return (
     <Switch>
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
-      {!isAdminRoute && <Route path="/" component={Home} />}
-      {!isAdminRoute && <Route path="/search" component={Search} />}
-      {!isAdminRoute && <Route path="/album/:id" component={Album} />}
-      {!isAdminRoute && <Route path="/playlist/:id" component={Playlist} />}
-      {!isAdminRoute && <Route path="/artist/:id" component={Artist} />}
-      {!isAdminRoute && <Route path="/liked" component={Liked} />}
-      {!isAdminRoute && <Route path="/library" component={Library} />}
-      {!isAdminRoute && <Route path="/pricing" component={Pricing} />}
-      {!isAdminRoute && <Route path="/live-rooms" component={LiveRooms} />}
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      {!isAdminRoute && !isAuthRoute && <Route path="/" component={Home} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/search" component={Search} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/album/:id" component={Album} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/playlist/:id" component={Playlist} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/artist/:id" component={Artist} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/liked" component={Liked} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/library" component={Library} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/pricing" component={Pricing} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/live-rooms" component={LiveRooms} />}
       <Route component={NotFound} />
     </Switch>
   );
@@ -48,12 +53,13 @@ function Router() {
 function App() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith('/admin');
+  const isAuthRoute = location === '/login' || location === '/register';
 
   useEffect(() => {
     musicKit.configure();
   }, []);
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isAuthRoute) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>

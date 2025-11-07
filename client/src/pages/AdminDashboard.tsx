@@ -89,9 +89,111 @@ export default function AdminDashboard() {
           <TabsContent value="services">
             <ServicesTab />
           </TabsContent>
+
+          <TabsContent value="users">
+            <UsersTab />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
+  );
+}
+
+function UsersTab() {
+  const { toast } = useToast();
+
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/users'],
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest('DELETE', `/api/admin/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Benutzer gelöscht",
+        description: "Der Benutzer wurde erfolgreich gelöscht",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Benutzer konnte nicht gelöscht werden",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Benutzer-Verwaltung</CardTitle>
+        <CardDescription>
+          Verwalte registrierte Benutzer und ihre Abonnements
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-8">
+            Lade Benutzer...
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            Keine Benutzer gefunden
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Benutzername</TableHead>
+                <TableHead>E-Mail</TableHead>
+                <TableHead>Registriert</TableHead>
+                <TableHead>Letzter Login</TableHead>
+                <TableHead>2FA</TableHead>
+                <TableHead>Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user: any) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.username}</TableCell>
+                  <TableCell>{user.email || '—'}</TableCell>
+                  <TableCell>
+                    {user.createdAt ? format(new Date(user.createdAt), 'dd.MM.yyyy HH:mm') : '—'}
+                  </TableCell>
+                  <TableCell>
+                    {user.lastLoginAt ? format(new Date(user.lastLoginAt), 'dd.MM.yyyy HH:mm') : 'Nie'}
+                  </TableCell>
+                  <TableCell>
+                    {user.twoFactorEnabled ? (
+                      <span className="text-green-500">Aktiv</span>
+                    ) : (
+                      <span className="text-muted-foreground">Inaktiv</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm(`Benutzer "${user.username}" wirklich löschen?`)) {
+                          deleteUser.mutate(user.id);
+                        }
+                      }}
+                      data-testid={`button-delete-user-${user.id}`}
+                    >
+                      <Trash size={18} weight="bold" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

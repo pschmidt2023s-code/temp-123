@@ -7,11 +7,11 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(
+export async function apiRequest<T = any>(
   method: string,
   url: string,
   data?: unknown | undefined,
-): Promise<Response> {
+): Promise<T> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
   // Add admin token for protected routes
@@ -30,7 +30,7 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
-  return res;
+  return res.json();
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
