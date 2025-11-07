@@ -310,12 +310,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe Checkout Session for Subscriptions
+  // Validate coupon code
+  app.post('/api/validate-coupon', async (req, res) => {
+    try {
+      const { code, tier } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: 'Coupon code required' });
+      }
+
+      const coupon = await storage.getCouponByCode(code.toUpperCase());
+      
+      if (!coupon) {
+        return res.status(404).json({ error: 'Gutscheincode nicht gefunden' });
+      }
+
+      if (!coupon.isActive) {
+        return res.status(400).json({ error: 'Dieser Gutschein ist nicht mehr aktiv' });
+      }
+
+      if (coupon.validUntil && new Date(coupon.validUntil) < new Date()) {
+        return res.status(400).json({ error: 'Dieser Gutschein ist abgelaufen' });
+      }
+
+      if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) {
+        return res.status(400).json({ error: 'Dieser Gutschein wurde bereits maximal oft verwendet' });
+      }
+
+      if (tier && coupon.applicableTiers && coupon.applicableTiers.length > 0) {
+        if (!coupon.applicableTiers.includes(tier)) {
+          return res.status(400).json({ error: `Dieser Gutschein ist nicht gültig für den ${tier}-Plan` });
+        }
+      }
+
+      res.json(coupon);
+    } catch (error) {
+      console.error('Coupon validation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   app.post('/api/create-checkout-session', async (req, res) => {
     try {
-      const { tier, userId, isUpgrade } = req.body;
+      const { tier, userId, isUpgrade, couponCode } = req.body;
       
       if (!tier || !userId) {
         return res.status(400).json({ error: 'Tier and userId required' });
+      }
+
+      // Validate coupon if provided
+      let validCoupon = null;
+      if (couponCode) {
+        validCoupon = await storage.getCouponByCode(couponCode.toUpperCase());
+        
+        if (!validCoupon || !validCoupon.isActive) {
+          return res.status(400).json({ error: 'Ungültiger Gutscheincode' });
+        }
+
+        if (validCoupon.validUntil && new Date(validCoupon.validUntil) < new Date()) {
+          return res.status(400).json({ error: 'Gutschein ist abgelaufen' });
+        }
+
+        if (validCoupon.maxUses && (validCoupon.usedCount || 0) >= validCoupon.maxUses) {
+          return res.status(400).json({ error: 'Gutschein wurde bereits maximal oft verwendet' });
+        }
+
+        if (validCoupon.applicableTiers && validCoupon.applicableTiers.length > 0) {
+          if (!validCoupon.applicableTiers.includes(tier)) {
+            return res.status(400).json({ error: `Gutschein nicht gültig für ${tier}-Plan` });
+          }
+        }
       }
 
       // Get price ID based on tier
@@ -390,7 +454,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Stripe Checkout Session for new subscriptions
-      const session = await stripe.checkout.sessions.create({
+      // Prepare session options
+      const sessionOptions: any = {
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [
@@ -406,7 +471,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           tier,
         },
-      });
+      };
+
+      // Apply discount if coupon is valid
+      if (validCoupon) {
+        // Create Stripe coupon on-the-fly
+        let stripeCoupon;
+        if (validCoupon.discountType === 'percentage') {
+          stripeCoupon = await stripe.coupons.create({
+            percent_off: validCoupon.discountValue,
+            duration: 'once',
+            name: validCoupon.code,
+          });
+        } else {
+          // Fixed amount discount (convert cents to currency units)
+          stripeCoupon = await stripe.coupons.create({
+            amount_off: validCoupon.discountValue,
+            currency: 'eur',
+            duration: 'once',
+            name: validCoupon.code,
+          });
+        }
+
+        sessionOptions.discounts = [{
+          coupon: stripeCoupon.id,
+        }];
+
+        sessionOptions.metadata.couponId = validCoupon.id;
+        sessionOptions.metadata.couponCode = validCoupon.code;
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionOptions);
 
       res.json({ sessionId: session.id, url: session.url });
     } catch (error: any) {
@@ -433,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
-          const { userId, tier } = session.metadata || {};
+          const { userId, tier, couponId, couponCode } = session.metadata || {};
           
           if (userId && tier) {
             // Check if subscription already exists
@@ -463,6 +558,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.updateUser(userId, {
                 stripeSubscriptionId: session.subscription as string,
               });
+            }
+
+            // Track coupon usage if coupon was applied
+            if (couponId && couponCode) {
+              const coupon = await storage.getCouponByCode(couponCode);
+              if (coupon) {
+                await storage.recordCouponUsage({
+                  couponId,
+                  userId,
+                  subscriptionTier: tier,
+                });
+                
+                // Update coupon used count
+                await storage.updateCoupon(couponId, {
+                  usedCount: (coupon.usedCount || 0) + 1,
+                });
+              }
             }
           }
           break;

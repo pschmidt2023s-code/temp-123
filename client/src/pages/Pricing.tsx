@@ -1,7 +1,9 @@
-import { Check } from '@phosphor-icons/react/dist/ssr';
+import { Check, Ticket } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@shared/schema';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
@@ -16,6 +18,33 @@ export default function Pricing() {
   const { subscription, isLoading } = useSubscription(userId);
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [validatedCoupon, setValidatedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState('');
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Bitte geben Sie einen Gutscheincode ein');
+      return;
+    }
+
+    try {
+      const result = await apiRequest<any>('POST', '/api/validate-coupon', {
+        code: couponCode,
+        tier: 'plus',
+      });
+
+      setValidatedCoupon(result);
+      setCouponError('');
+      toast({
+        title: 'Gutschein gültig!',
+        description: `${result.discountType === 'percentage' ? result.discountValue + '%' : (result.discountValue / 100).toFixed(2) + '€'} Rabatt wird angewendet`,
+      });
+    } catch (error: any) {
+      setCouponError(error.message || 'Ungültiger Gutscheincode');
+      setValidatedCoupon(null);
+    }
+  };
 
   const handleSubscribe = async (tier: SubscriptionTier) => {
     try {
@@ -29,6 +58,7 @@ export default function Pricing() {
         tier,
         userId,
         isUpgrade,
+        couponCode: validatedCoupon ? couponCode : undefined,
       });
 
       // If upgrade was successful (no redirect URL)
@@ -68,6 +98,16 @@ export default function Pricing() {
     { tier: 'family' },
   ];
 
+  const calculateDiscountedPrice = (tier: SubscriptionTier) => {
+    if (!validatedCoupon) return SUBSCRIPTION_TIERS[tier].price;
+    
+    const originalPrice = SUBSCRIPTION_TIERS[tier].price;
+    if (validatedCoupon.discountType === 'percentage') {
+      return originalPrice * (1 - validatedCoupon.discountValue / 100);
+    }
+    return Math.max(0, originalPrice - validatedCoupon.discountValue / 100);
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-12">
@@ -78,6 +118,54 @@ export default function Pricing() {
           100 Millionen Songs. Lossless Audio. Dolby Atmos. Unbegrenzte Möglichkeiten.
         </p>
       </div>
+
+      <Card className="max-w-md mx-auto mb-8 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Ticket size={24} weight="bold" className="text-primary" />
+          <h3 className="text-lg font-semibold">Gutscheincode einlösen</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="coupon">Gutscheincode</Label>
+            <div className="flex gap-2">
+              <Input
+                id="coupon"
+                placeholder="z.B. SOMMER2025"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value.toUpperCase());
+                  setCouponError('');
+                }}
+                data-testid="input-coupon-code"
+                className={couponError ? 'border-red-500' : ''}
+              />
+              <Button 
+                onClick={validateCoupon} 
+                disabled={!couponCode.trim()}
+                data-testid="button-validate-coupon"
+              >
+                Prüfen
+              </Button>
+            </div>
+            {couponError && (
+              <p className="text-sm text-red-500">{couponError}</p>
+            )}
+            {validatedCoupon && (
+              <div className="flex items-center gap-2 text-sm text-green-500">
+                <Check size={16} weight="bold" />
+                <span>
+                  {validatedCoupon.discountType === 'percentage' 
+                    ? `${validatedCoupon.discountValue}% Rabatt` 
+                    : `${(validatedCoupon.discountValue / 100).toFixed(2)}€ Rabatt`}
+                  {validatedCoupon.applicableTiers && validatedCoupon.applicableTiers.length > 0 && (
+                    <> (gültig für: {validatedCoupon.applicableTiers.join(', ')})</>
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {tiers.map(({ tier, popular }) => {
@@ -117,9 +205,20 @@ export default function Pricing() {
                   {tierData.name}
                 </h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-foreground">
-                    {tierData.price.toFixed(2)}€
-                  </span>
+                  {validatedCoupon && (!validatedCoupon.applicableTiers || validatedCoupon.applicableTiers.includes(tier)) ? (
+                    <>
+                      <span className="text-2xl font-bold text-muted-foreground line-through">
+                        {tierData.price.toFixed(2)}€
+                      </span>
+                      <span className="text-4xl font-bold text-primary">
+                        {calculateDiscountedPrice(tier).toFixed(2)}€
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-4xl font-bold text-foreground">
+                      {tierData.price.toFixed(2)}€
+                    </span>
+                  )}
                   <span className="text-muted-foreground">/Monat</span>
                 </div>
               </div>
