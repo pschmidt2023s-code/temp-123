@@ -1,15 +1,17 @@
-import { House, MagnifyingGlass, Books, Heart, Users } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Heart, Crown } from '@phosphor-icons/react/dist/ssr';
 import { Link, useLocation } from 'wouter';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export function MobileNav() {
   const [location] = useLocation();
+  const { subscription } = useSubscription('demo-user');
 
   const navItems = [
     { path: '/', icon: House, label: 'Start' },
     { path: '/search', icon: MagnifyingGlass, label: 'Suchen' },
     { path: '/library', icon: Books, label: 'Bibliothek' },
     { path: '/liked', icon: Heart, label: 'Favoriten' },
-    { path: '/live-rooms', icon: Users, label: 'Rooms' },
+    { path: '/pricing', icon: Crown, label: subscription ? subscription.tier === 'plus' ? 'Plus' : subscription.tier === 'premium' ? 'Premium' : 'Family' : 'Premium' },
   ];
 
   return (
@@ -30,11 +32,17 @@ export function MobileNav() {
             <Link key={item.path} href={item.path}>
               <button
                 className={`flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors active:scale-95 ${
-                  isActive ? 'text-primary' : 'text-muted-foreground'
+                  isActive 
+                    ? item.icon === Crown && subscription 
+                      ? 'text-primary' 
+                      : 'text-primary'
+                    : item.icon === Crown && !subscription
+                      ? 'text-primary'
+                      : 'text-muted-foreground'
                 }`}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
-                <Icon size={24} weight="bold" />
+                <Icon size={24} weight={item.icon === Crown && subscription ? 'fill' : 'bold'} />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </button>
             </Link>

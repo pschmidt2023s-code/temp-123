@@ -1,15 +1,17 @@
-import { MagnifyingGlass, User, SignIn, SignOut } from '@phosphor-icons/react/dist/ssr';
+import { MagnifyingGlass, User, SignIn, SignOut, Crown } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useMKAuth } from '@/hooks/useMKAuth';
 import { Badge } from '@/components/ui/badge';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export function TopBar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [, setLocation] = useLocation();
   const { isAuthorized, isLoading, authorize, unauthorize } = useMKAuth();
+  const { subscription } = useSubscription('demo-user');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +52,45 @@ export function TopBar() {
       </form>
 
       <div className="flex items-center gap-2 md:gap-4">
+        {/* Subscription Badge & Upgrade Button */}
+        {subscription ? (
+          <Badge 
+            variant="default" 
+            className="bg-primary text-primary-foreground hidden md:inline-flex gap-1"
+          >
+            <Crown size={14} weight="fill" />
+            {subscription.tier === 'plus' && 'Plus'}
+            {subscription.tier === 'premium' && 'Premium'}
+            {subscription.tier === 'family' && 'Family'}
+          </Badge>
+        ) : (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setLocation('/pricing')}
+            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 hidden md:flex"
+            data-testid="button-upgrade-desktop"
+          >
+            <Crown size={16} weight="fill" />
+            Premium holen
+          </Button>
+        )}
+        
+        {/* Mobile Upgrade Icon */}
+        {!subscription && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation('/pricing')}
+            className="md:hidden text-primary"
+            data-testid="button-upgrade-mobile"
+          >
+            <Crown size={20} weight="fill" />
+          </Button>
+        )}
+        
         {isAuthorized && (
-          <Badge variant="default" className="bg-primary text-primary-foreground hidden md:inline-flex">
+          <Badge variant="outline" className="hidden md:inline-flex">
             Apple Music
           </Badge>
         )}
