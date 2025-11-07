@@ -1,0 +1,132 @@
+Erstelle live und ohne Wartezeit eine pixelgenaue Spotify-Clone-Oberfläche (1:1 Maße, Farben, Icons, Hover, Shadows) mit vollständigem Apple-Music-Funktionsumfang (100 Mio. Songs, Lossless, Dolby Atmos, Gapless, Crossfade, Cloud-Library, Radio-Stationen, timed Lyrics) über Apple Musickit JS.
+Alle untenstehenden Punkte zwingend und komplett umsetzen – keine Kürzungen, keine Alternativen.
+DESIGN – PIXEL-PERFECT SPOTIFY CLONE
+Farben (exakt):
+– background: #121212
+– surface1: #181818
+– surface2: #242424
+– hover: #2a2a2a
+– accent: #1DB954 (Spotify-Grün)
+– text-primary: #FFFFFF
+– text-secondary: #B3B3B3
+– divider: #282828
+Typografie:
+– Font-Family: “Circular” (via fonts.cdn) → Fallback “Helvetica Neue”, sans-serif
+– Größen: 32/24/16/14/12 px (Spotify Style Guide)
+Layout-Maße:
+– Linke Sidebar: 241 px fixed, 8 px Padding, 24 px Zeilenhöhe
+– Top-Bar: 64 px Höhe, 32 px Padding-x
+– Now-Playing-Bar: 90 px Höhe, fixed bottom
+– Content-Cards: 200 × 200 px Cover, 16 px Border-Radius, 12 px Drop-Shadow
+– Hover: Overlay 20 % schwarz, 4 px Lift, Schatten 20 % stärker
+Icons:
+– Phosphor-Icons “bold”, 24 px Grid – exacte Spotify-Glyphen: home, search, library, plus, heart, play, pause, next, prev, shuffle, repeat, volume, queue, lyrics, cast
+Glassmorphism (überall):
+– Klasse .glass:
+css
+
+Copy
+.backdrop-blur-xl { backdrop-filter: blur(20px) saturate(180%); }
+.bg-white\\/10 { background-color: rgba(255,255,255,0.06); }
+.border { border: 1px solid rgba(255,255,255,0.08); }
+.rounded-2xl { border-radius: 16px; }
+.shadow-glass { box-shadow: 0 8px 32px rgba(0,0,0,0.37), inset 0 0 0 1px rgba(255,255,255,0.05); }
+– Jede Card, Header, Player, Sidebar erhält zusätzlich diese Klasse.
+Dark-Mode only – kein Toggle.
+SEITEN-STRUKTUR (Next.js App Router)
+app/layout.tsx – Root-Layout mit Sidebar, TopBar, Player
+app/page.tsx – Home (“Für dich”, Mixes, Neuerscheinungen)
+app/search/page.tsx – Suche mit Kategorie-Chips
+app/album/[id]/page.tsx – Album-View (Track-Table)
+app/playlist/[id]/page.tsx – Playlist-View
+app/artist/[id]/page.tsx – Artist-View
+app/liked/page.tsx – “Deine gespeichten Songs”
+components/Sidebar.tsx – 241 px fixed, Nav-Punkte + Bibliothek
+components/TopBar.tsx – 64 px, Search-Superfield, User-Menü
+components/Player.tsx – 90 px fixed bottom, Progress, Volume, Lyrics
+components/Card.tsx – Cover, Title, Subtitle, Play-Floater
+components/TrackRow.tsx – # ,  , Titel, Album, Datum, Dauer, Herz
+store/usePlayer.ts – Zustand: queue, index, playing, shuffle, repeat, volume
+lib/musickit.ts – Singleton Musickit-Instanz
+hooks/useMKAuth.ts – Apple-ID Login, Token-Cookie
+hooks/useMKCatalog.ts – Alben, Playlists, Stationen laden
+hooks/useMKPlayback.ts – play, pause, seek, skip, queue
+hooks/useMKLyrics.ts – timed Lyrics (word-by-word)
+public/sw.js – Service-Worker für Offline-Cache (PWA)
+APPLE MUSICKIT INTEGRATION
+Script in app/layout.tsx laden:
+HTML
+
+Preview
+
+Copy
+<script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" data-web-components async strategy="beforeInteractive" />
+Musik konfigurieren:
+TypeScript
+
+Copy
+window.MusicKit.configure({
+  developerToken: process.env.NEXT_PUBLIC_MK_DEV_TOKEN!,
+  app: { name: 'GlassBeats', build: '1.0.0' }
+});
+Auth: Button “Mit Apple anmelden” → MusicKit.authorize() → User-Token in http-only Cookie speichern.
+Playback: MusicKit.getInstance().player.play({ type: 'songs', id: '...' }) – Gapless, Crossfade, Lossless, Atmos automatisch via Apple.
+Cloud-Library: Upload-Endpunkt /v1/me/library/uploads – UI-Button “Datei hochladen” → presigned URL → PUT → erscheint in Bibliothek.
+Radio-Stationen: createStation({ type: 'artists', id: '...' }) → endloser Feed.
+Lyrics: /v1/catalog/de/songs/{id}/lyrics → timed array → full-screen Overlay mit Wort-für-Wort-Highlight.
+ZUSTAND-STORE (Zustand)
+interface PlayerState {
+queue: MKMediaItem[];
+index: number;
+playing: boolean;
+shuffle: boolean;
+repeat: 'off' | 'one' | 'all';
+volume: number; // 0-100
+}
+actions: setQueue, play, pause, next, prev, seek, toggleShuffle, toggleRepeat, setVolume
+Sync mit MusicKit-Events: playbackStateDidChange, currentPlaybackTime
+PERFORMANCE & PWA
+Bilder: MusicKit-Artwork {w}x{h}bb → 400×400 für Cards, 64×64 für Player
+next/image component, priority für erste 6 Cards
+Service-Worker: cache album images + erste 3 Playlist-Tracks für Offline
+Install-Prompt: maskable icon 512×512, short_name “GlassBeats”, theme_color #121212
+Lighthouse-Score > 95 (Performance, Accessibility, Best Practices, SEO)
+SICHERHEIT & GDPR
+Apple übernimmt DRM & User-Data – wir speichern nur User-Token (verschlüsselt im Cookie)
+CSP:
+TypeScript
+
+Copy
+default-src 'self'; script-src 'self' https://js-cdn.music.apple.com; img-src * data:; media-src * blob:
+DSAR & Delete: Apple-Endpunkt /v1/me/delete – Button in Einstellungen
+Keine IP-Speicherung, keine Logs > 7 Tage
+ENV VARS
+Erzeuge .env Datei:
+
+Copy
+NEXT_PUBLIC_MK_DEV_TOKEN=eyJ0eX...   // von developer.apple.com
+NEXT_PUBLIC_MK_TEAM_ID=ABC123456
+(Replit-Secret: erstelle gleichnamiges Secret → Agent bindet automatisch ein)
+SPRACHE
+Komplette UI Deutsch – keine Englisch-Reste:
+“Home” → “Start”
+“Search” → “Suchen”
+“Library” → “Deine Bibliothek”
+“Liked Songs” → “Deine Lieblingssongs”
+“Create Playlist” → “Neue Playlist”
+“Lyrics” → “Songtexte”
+“Queue” → “Warteschlange”
+FINALER CHECK – NACH CODE-GENERATION
+Sidebar exakt 241 px messen → muss passen
+Player exakt 90 px → fixiert
+Glass-Blur 20 px + 16 px Radius → sichtbar
+Hover-Card: 4 px Lift + stärkerer Schatten → muss animiert sein
+Apple-Login-Button → öffnet Popup → Token-Cookie gesetzt
+Play-Klick → Song startet → Progress-Balken läuft → Volume-Slider funktioniert
+Lyrics-Button → Overlay mit Wort-Highlight → muss synchron laufen
+Upload-Button → Datei → erscheint in Bibliothek
+Lighthouse-Score > 95 → abrufbar via Replit-URL
+DEPLOY
+Replit-Agent erzeugt → sofortige Live-Preview auf .replit.app Domain
+1-Klick “Deploy to Production” → fertig
+Optional: GitHub-Sync → Vercel-Import
