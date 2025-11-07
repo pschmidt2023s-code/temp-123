@@ -14,8 +14,11 @@ export function MobileNav() {
 
   return (
     <nav 
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border"
-      style={{ height: '64px', marginBottom: '90px' }}
+      className="md:hidden fixed left-0 right-0 z-40 glass border-t border-border bg-background/95 backdrop-blur-lg"
+      style={{ 
+        height: '64px',
+        bottom: '90px'
+      }}
     >
       <div className="h-full flex items-center justify-around px-2">
         {navItems.map((item) => {
@@ -25,7 +28,7 @@ export function MobileNav() {
           return (
             <Link key={item.path} href={item.path}>
               <button
-                className={`flex flex-col items-center justify-center gap-1 px-4 py-2 transition-colors ${
+                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors active:scale-95 ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
                 data-testid={`nav-${item.label.toLowerCase()}`}

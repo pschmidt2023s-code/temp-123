@@ -13,12 +13,13 @@ import {
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
 import { LyricsOverlay } from './LyricsOverlay';
+import { FullscreenPlayer } from './FullscreenPlayer';
 
-export function Player() {
+function PlayerComponent() {
   const {
     queue,
     currentIndex,
@@ -41,6 +42,7 @@ export function Player() {
 
   const { seekToTime, skipToNext, skipToPrevious } = useMKPlayback();
   const [showLyrics, setShowLyrics] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
 
   useEffect(() => {
     if (queue[currentIndex]) {
@@ -146,21 +148,30 @@ export function Player() {
           onClose={() => setShowLyrics(false)}
         />
       )}
+      {showFullscreen && (
+        <FullscreenPlayer onClose={() => setShowFullscreen(false)} />
+      )}
       
       <footer 
-        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-2 md:px-4"
+        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg"
         style={{ height: '90px', minHeight: '90px', maxHeight: '90px' }}
       >
         <div className="h-full flex flex-col md:flex-row items-center justify-between gap-1 md:gap-4">
         {/* Left: Current Track Info */}
         <div className="hidden md:flex items-center gap-4 min-w-[180px] w-[30%]">
           {artwork && (
-            <img
-              src={artwork}
-              alt={currentTrack.attributes.name}
-              className="w-14 h-14 rounded object-cover"
-              data-testid="img-track-cover"
-            />
+            <button
+              onClick={() => setShowFullscreen(true)}
+              className="shrink-0 transition-transform hover:scale-105 active:scale-95"
+              data-testid="button-open-fullscreen-desktop"
+            >
+              <img
+                src={artwork}
+                alt={currentTrack.attributes.name}
+                className="w-14 h-14 rounded object-cover cursor-pointer"
+                data-testid="img-track-cover"
+              />
+            </button>
           )}
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-foreground truncate" data-testid="text-track-name">
@@ -185,11 +196,17 @@ export function Player() {
           {/* Mobile: Track info on top */}
           <div className="md:hidden flex items-center gap-2 w-full px-2">
             {artwork && (
-              <img
-                src={artwork}
-                alt={currentTrack.attributes.name}
-                className="w-10 h-10 rounded object-cover"
-              />
+              <button
+                onClick={() => setShowFullscreen(true)}
+                className="shrink-0 transition-transform active:scale-95"
+                data-testid="button-open-fullscreen-mobile"
+              >
+                <img
+                  src={artwork}
+                  alt={currentTrack.attributes.name}
+                  className="w-10 h-10 rounded object-cover cursor-pointer"
+                />
+              </button>
             )}
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-foreground truncate">
@@ -312,3 +329,5 @@ export function Player() {
     </>
   );
 }
+
+export const Player = memo(PlayerComponent);
