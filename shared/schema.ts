@@ -116,6 +116,74 @@ export const adminSessions = pgTable("admin_sessions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const userSettings = pgTable("user_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  dataSaver: boolean("data_saver").default(false),
+  downloadOverCellular: boolean("download_over_cellular").default(false),
+  pictureInPicture: boolean("picture_in_picture").default(true),
+  fadeInOut: boolean("fade_in_out").default(true),
+  autoDj: boolean("auto_dj").default(false),
+  audioNormalization: boolean("audio_normalization").default(true),
+  monoAudio: boolean("mono_audio").default(false),
+  equalizer: text("equalizer").default('off'), // 'off', 'acoustic', 'bass_boost', 'treble_boost', 'vocal_boost', 'custom'
+  streamQuality: text("stream_quality").default('high'), // 'low', 'normal', 'high', 'best', 'lossless'
+  cellularQuality: text("cellular_quality").default('normal'),
+  autoBandwidthAdjust: boolean("auto_bandwidth_adjust").default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userStats = pgTable("user_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  artistName: text("artist_name").notNull(),
+  songId: text("song_id").notNull(),
+  songTitle: text("song_title").notNull(),
+  playCount: integer("play_count").default(0),
+  totalMinutes: integer("total_minutes").default(0),
+  lastPlayedAt: timestamp("last_played_at").defaultNow(),
+});
+
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  type: text("type").notNull(), // 'minutes_listened', 'songs_played', 'artists_discovered'
+  milestone: integer("milestone").notNull(), // 1000, 10000, 100000
+  unlockedAt: timestamp("unlocked_at").defaultNow(),
+  isShared: boolean("is_shared").default(false),
+});
+
+export const artistProfiles = pgTable("artist_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  artistName: text("artist_name").notNull().unique(),
+  bio: text("bio"),
+  profileImageUrl: text("profile_image_url"),
+  isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const lyrics = pgTable("lyrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  releaseId: varchar("release_id").references(() => releases.id).notNull(),
+  content: text("content").notNull(), // Full lyrics text
+  timedLines: text("timed_lines"), // JSON array of {startTime, endTime, text, words: [{word, startTime, endTime}]}
+  language: text("language").default('de'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const streamingEvents = pgTable("streaming_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  releaseId: varchar("release_id").references(() => releases.id).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  country: text("country"),
+  city: text("city"),
+  platform: text("platform").notNull(), // 'web', 'mobile', 'desktop'
+  durationSeconds: integer("duration_seconds").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -174,6 +242,37 @@ export const insertStreamingServiceSchema = createInsertSchema(streamingServices
   lastChecked: true,
 });
 
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertUserStatsSchema = createInsertSchema(userStats).omit({
+  id: true,
+  lastPlayedAt: true,
+});
+
+export const insertAchievementSchema = createInsertSchema(achievements).omit({
+  id: true,
+  unlockedAt: true,
+});
+
+export const insertArtistProfileSchema = createInsertSchema(artistProfiles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLyricsSchema = createInsertSchema(lyrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStreamingEventSchema = createInsertSchema(streamingEvents).omit({
+  id: true,
+  timestamp: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
@@ -189,6 +288,18 @@ export type ArtistRegistrationLink = typeof artistRegistrationLinks.$inferSelect
 export type InsertStreamingService = z.infer<typeof insertStreamingServiceSchema>;
 export type StreamingService = typeof streamingServices.$inferSelect;
 export type AdminSession = typeof adminSessions.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
+export type UserStats = typeof userStats.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertArtistProfile = z.infer<typeof insertArtistProfileSchema>;
+export type ArtistProfile = typeof artistProfiles.$inferSelect;
+export type InsertLyrics = z.infer<typeof insertLyricsSchema>;
+export type Lyrics = typeof lyrics.$inferSelect;
+export type InsertStreamingEvent = z.infer<typeof insertStreamingEventSchema>;
+export type StreamingEvent = typeof streamingEvents.$inferSelect;
 
 export const insertWebAuthnCredentialSchema = createInsertSchema(webauthnCredentials).omit({
   createdAt: true,

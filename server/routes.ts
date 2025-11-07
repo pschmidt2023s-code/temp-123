@@ -7,6 +7,10 @@ import {
   insertReleaseSchema,
   insertArtistRegistrationLinkSchema,
   insertStreamingServiceSchema,
+  insertUserSettingsSchema,
+  insertArtistProfileSchema,
+  insertLyricsSchema,
+  insertStreamingEventSchema,
   SUBSCRIPTION_TIERS 
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
@@ -1236,6 +1240,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteStreamingService(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Service not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // User Settings Routes
+  app.get('/api/settings/:userId', async (req, res) => {
+    try {
+      let settings = await storage.getUserSettings(req.params.userId);
+      if (!settings) {
+        settings = await storage.createUserSettings({ userId: req.params.userId });
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/settings/:userId', async (req, res) => {
+    try {
+      const result = insertUserSettingsSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid settings data', details: result.error });
+      }
+      const settings = await storage.updateUserSettings(req.params.userId, result.data);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // User Stats & Dashboard Routes
+  app.get('/api/stats/:userId', async (req, res) => {
+    try {
+      const stats = await storage.getUserStats(req.params.userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/stats/:userId/top-artists', async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const topArtists = await storage.getTopArtists(req.params.userId, limit);
+      res.json(topArtists);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/stats/record-playback', async (req, res) => {
+    try {
+      const { userId, artistName, songId, songTitle, durationMinutes } = req.body;
+      await storage.recordPlayback(userId, artistName, songId, songTitle, durationMinutes);
+      res.status(200).json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Achievements Routes
+  app.get('/api/achievements/:userId', async (req, res) => {
+    try {
+      const achievements = await storage.getUserAchievements(req.params.userId);
+      res.json(achievements);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/achievements/:achievementId/share', async (req, res) => {
+    try {
+      const shared = await storage.markAchievementShared(req.params.achievementId);
+      if (!shared) {
+        return res.status(404).json({ error: 'Achievement not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Artist Portal Routes
+  app.get('/api/artist/profile/:userId', async (req, res) => {
+    try {
+      const profile = await storage.getArtistProfile(req.params.userId);
+      res.json(profile);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/artist/profile', async (req, res) => {
+    try {
+      const result = insertArtistProfileSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid profile data', details: result.error });
+      }
+      const profile = await storage.createArtistProfile(result.data);
+      res.status(201).json(profile);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/artist/profile/:id', async (req, res) => {
+    try {
+      const profile = await storage.updateArtistProfile(req.params.id, req.body);
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      res.json(profile);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Artist Analytics Routes
+  app.get('/api/artist/analytics/:releaseId', async (req, res) => {
+    try {
+      const analytics = await storage.getStreamingAnalytics(req.params.releaseId);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/artist/events/:releaseId', async (req, res) => {
+    try {
+      const events = await storage.getStreamingEventsByRelease(req.params.releaseId);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/streaming-events', async (req, res) => {
+    try {
+      const result = insertStreamingEventSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid event data', details: result.error });
+      }
+      const event = await storage.recordStreamingEvent(result.data);
+      res.status(201).json(event);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Lyrics Routes (Admin Protected)
+  app.get('/api/lyrics/:releaseId', async (req, res) => {
+    try {
+      const lyrics = await storage.getLyricsByReleaseId(req.params.releaseId);
+      res.json(lyrics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/admin/lyrics', requireAdminAuth, async (req, res) => {
+    try {
+      const result = insertLyricsSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid lyrics data', details: result.error });
+      }
+      const lyrics = await storage.createLyrics(result.data);
+      res.status(201).json(lyrics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/admin/lyrics/:id', requireAdminAuth, async (req, res) => {
+    try {
+      const lyrics = await storage.updateLyrics(req.params.id, req.body);
+      if (!lyrics) {
+        return res.status(404).json({ error: 'Lyrics not found' });
+      }
+      res.json(lyrics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/admin/lyrics/:id', requireAdminAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteLyrics(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Lyrics not found' });
       }
       res.status(204).send();
     } catch (error) {

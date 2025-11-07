@@ -6,13 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Key, Trash, Plus } from '@phosphor-icons/react';
-import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { Shield, Key, Trash, Plus, SpeakerHigh, WifiHigh, CloudArrowDown } from '@phosphor-icons/react';
+import { startRegistration } from '@simplewebauthn/browser';
+import type { UserSettings } from '@shared/schema';
 
 export default function Settings() {
   const { toast } = useToast();
-  const userId = localStorage.getItem('userId') || '';
+  const userId = localStorage.getItem('userId') || 'demo-user';
 
   const [show2FADialog, setShow2FADialog] = useState(false);
   const [qrCode, setQrCode] = useState('');
@@ -27,9 +32,40 @@ export default function Settings() {
     enabled: !!userId,
   });
 
+  const { data: settings, isLoading: settingsLoading } = useQuery<UserSettings>({
+    queryKey: ['/api/settings', userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/settings/${userId}`);
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+
   const { data: passkeys = [], refetch: refetchPasskeys } = useQuery<any[]>({
     queryKey: ['/api/auth/webauthn/credentials', userId],
     enabled: !!userId,
+  });
+
+  // Update Settings Mutation
+  const updateSettings = useMutation({
+    mutationFn: async (data: Partial<UserSettings>) => {
+      return await apiRequest('PATCH', `/api/settings/${userId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/settings', userId] });
+      toast({
+        title: "Einstellungen gespeichert",
+        description: "Ihre Änderungen wurden erfolgreich gespeichert",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // 2FA Setup Mutation
@@ -47,13 +83,6 @@ export default function Settings() {
       setBackupCodes(data.backupCodes);
       setShow2FADialog(true);
     },
-    onError: (error: any) => {
-      toast({
-        title: "Fehler",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   // 2FA Enable Mutation
@@ -70,13 +99,6 @@ export default function Settings() {
         description: "Zwei-Faktor-Authentifizierung wurde erfolgreich aktiviert",
       });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Ungültiger Code",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   // 2FA Disable Mutation
@@ -89,13 +111,6 @@ export default function Settings() {
       toast({
         title: "2FA deaktiviert",
         description: "Zwei-Faktor-Authentifizierung wurde deaktiviert",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Fehler",
-        description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -148,105 +163,320 @@ export default function Settings() {
     },
   });
 
+  if (settingsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Lade Einstellungen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
-      <h1 className="text-3xl font-bold">Sicherheitseinstellungen</h1>
+    <div className="container max-w-4xl py-8 pb-32">
+      <h1 className="text-heading font-bold mb-6" data-testid="text-settings-title">Einstellungen</h1>
 
-      {/* 2FA Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield size={24} weight="bold" />
-            Zwei-Faktor-Authentifizierung (2FA)
-          </CardTitle>
-          <CardDescription>
-            Erhöhen Sie die Sicherheit Ihres Kontos mit 2FA
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {user?.twoFactorEnabled ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-500">
-                <Shield size={20} weight="fill" />
-                <span className="font-medium">2FA ist aktiviert</span>
+      <Tabs defaultValue="audio" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="audio" data-testid="tab-audio">
+            <SpeakerHigh size={20} weight="bold" className="mr-2" />
+            Audio
+          </TabsTrigger>
+          <TabsTrigger value="streaming" data-testid="tab-streaming">
+            <WifiHigh size={20} weight="bold" className="mr-2" />
+            Streaming
+          </TabsTrigger>
+          <TabsTrigger value="security" data-testid="tab-security">
+            <Shield size={20} weight="bold" className="mr-2" />
+            Sicherheit
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Audio Settings */}
+        <TabsContent value="audio" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Audio-Einstellungen</CardTitle>
+              <CardDescription>Passen Sie Ihre Klangpräferenzen an</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="fade-in-out">Fade In/Out</Label>
+                  <p className="text-sm text-muted-foreground">Sanfte Übergänge zwischen Songs</p>
+                </div>
+                <Switch
+                  id="fade-in-out"
+                  checked={settings?.fadeInOut ?? true}
+                  onCheckedChange={(checked) => updateSettings.mutate({ fadeInOut: checked })}
+                  data-testid="switch-fade-in-out"
+                />
               </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const password = prompt('Passwort eingeben, um 2FA zu deaktivieren:');
-                  if (password) disable2FA.mutate(password);
-                }}
-                data-testid="button-disable-2fa"
-              >
-                2FA deaktivieren
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={() => setup2FA.mutate()}
-              disabled={setup2FA.isPending}
-              data-testid="button-setup-2fa"
-            >
-              <Shield size={20} weight="bold" className="mr-2" />
-              {setup2FA.isPending ? '2FA wird eingerichtet...' : '2FA einrichten'}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Passkeys Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key size={24} weight="bold" />
-            Passkeys (Biometrische Anmeldung)
-          </CardTitle>
-          <CardDescription>
-            Melden Sie sich mit Face ID, Touch ID oder Windows Hello an
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
-            onClick={() => setShowPasskeyDialog(true)}
-            data-testid="button-add-passkey"
-          >
-            <Plus size={20} weight="bold" className="mr-2" />
-            Passkey hinzufügen
-          </Button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="auto-dj">Auto DJ</Label>
+                  <p className="text-sm text-muted-foreground">Automatisch ähnliche Songs abspielen</p>
+                </div>
+                <Switch
+                  id="auto-dj"
+                  checked={settings?.autoDj ?? false}
+                  onCheckedChange={(checked) => updateSettings.mutate({ autoDj: checked })}
+                  data-testid="switch-auto-dj"
+                />
+              </div>
 
-          {passkeys.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Ihre Passkeys:</h3>
-              {passkeys.map((passkey: any) => (
-                <div
-                  key={passkey.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="audio-normalization">Audionormalisierung</Label>
+                  <p className="text-sm text-muted-foreground">Gleichmäßige Lautstärke bei allen Songs</p>
+                </div>
+                <Switch
+                  id="audio-normalization"
+                  checked={settings?.audioNormalization ?? true}
+                  onCheckedChange={(checked) => updateSettings.mutate({ audioNormalization: checked })}
+                  data-testid="switch-audio-normalization"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="mono-audio">Mono Audio</Label>
+                  <p className="text-sm text-muted-foreground">Beide Kanäle auf Mono umschalten</p>
+                </div>
+                <Switch
+                  id="mono-audio"
+                  checked={settings?.monoAudio ?? false}
+                  onCheckedChange={(checked) => updateSettings.mutate({ monoAudio: checked })}
+                  data-testid="switch-mono-audio"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="equalizer">Equalizer</Label>
+                <Select
+                  value={settings?.equalizer || 'off'}
+                  onValueChange={(value) => updateSettings.mutate({ equalizer: value })}
                 >
-                  <div>
-                    <p className="font-medium">{passkey.deviceName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Erstellt: {new Date(passkey.createdAt).toLocaleDateString('de-DE')}
-                      {passkey.lastUsedAt && ` • Zuletzt verwendet: ${new Date(passkey.lastUsedAt).toLocaleDateString('de-DE')}`}
-                    </p>
+                  <SelectTrigger id="equalizer" data-testid="select-equalizer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">Aus</SelectItem>
+                    <SelectItem value="acoustic">Akustik</SelectItem>
+                    <SelectItem value="bass_boost">Bass Boost</SelectItem>
+                    <SelectItem value="treble_boost">Höhen Boost</SelectItem>
+                    <SelectItem value="vocal_boost">Vocal Boost</SelectItem>
+                    <SelectItem value="custom">Benutzerdefiniert</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Streaming Settings */}
+        <TabsContent value="streaming" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Streaming & Downloads</CardTitle>
+              <CardDescription>Datenverbrauch und Qualität verwalten</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="data-saver">Data Saver</Label>
+                  <p className="text-sm text-muted-foreground">Reduziert Datenverbrauch</p>
+                </div>
+                <Switch
+                  id="data-saver"
+                  checked={settings?.dataSaver ?? false}
+                  onCheckedChange={(checked) => updateSettings.mutate({ dataSaver: checked })}
+                  data-testid="switch-data-saver"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="download-cellular">Über Mobilfunk herunterladen</Label>
+                  <p className="text-sm text-muted-foreground">Downloads auch über mobile Daten erlauben</p>
+                </div>
+                <Switch
+                  id="download-cellular"
+                  checked={settings?.downloadOverCellular ?? false}
+                  onCheckedChange={(checked) => updateSettings.mutate({ downloadOverCellular: checked })}
+                  data-testid="switch-download-cellular"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="picture-in-picture">Bild-in-Bild Modus</Label>
+                  <p className="text-sm text-muted-foreground">Video-Player im Miniaturformat</p>
+                </div>
+                <Switch
+                  id="picture-in-picture"
+                  checked={settings?.pictureInPicture ?? true}
+                  onCheckedChange={(checked) => updateSettings.mutate({ pictureInPicture: checked })}
+                  data-testid="switch-picture-in-picture"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="auto-bandwidth">Automatische Anpassung nach Bandbreite</Label>
+                  <p className="text-sm text-muted-foreground">Qualität automatisch anpassen</p>
+                </div>
+                <Switch
+                  id="auto-bandwidth"
+                  checked={settings?.autoBandwidthAdjust ?? true}
+                  onCheckedChange={(checked) => updateSettings.mutate({ autoBandwidthAdjust: checked })}
+                  data-testid="switch-auto-bandwidth"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="stream-quality">Medienqualität beim Streamen</Label>
+                <Select
+                  value={settings?.streamQuality || 'high'}
+                  onValueChange={(value) => updateSettings.mutate({ streamQuality: value })}
+                >
+                  <SelectTrigger id="stream-quality" data-testid="select-stream-quality">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Niedrig (64 kbit/s)</SelectItem>
+                    <SelectItem value="normal">Normal (128 kbit/s)</SelectItem>
+                    <SelectItem value="high">Hoch (256 kbit/s)</SelectItem>
+                    <SelectItem value="best">Beste (320 kbit/s)</SelectItem>
+                    <SelectItem value="lossless">Lossless (FLAC)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cellular-quality">Medienqualität für Mobilfunk</Label>
+                <Select
+                  value={settings?.cellularQuality || 'normal'}
+                  onValueChange={(value) => updateSettings.mutate({ cellularQuality: value })}
+                >
+                  <SelectTrigger id="cellular-quality" data-testid="select-cellular-quality">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Niedrig (64 kbit/s)</SelectItem>
+                    <SelectItem value="normal">Normal (128 kbit/s)</SelectItem>
+                    <SelectItem value="high">Hoch (256 kbit/s)</SelectItem>
+                    <SelectItem value="best">Beste (320 kbit/s)</SelectItem>
+                    <SelectItem value="lossless">Lossless (FLAC)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Settings */}
+        <TabsContent value="security" className="space-y-4">
+          {/* 2FA Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield size={24} weight="bold" />
+                Zwei-Faktor-Authentifizierung (2FA)
+              </CardTitle>
+              <CardDescription>
+                Erhöhen Sie die Sicherheit Ihres Kontos mit 2FA
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {user?.twoFactorEnabled ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-500">
+                    <Shield size={20} weight="fill" />
+                    <span className="font-medium">2FA ist aktiviert</span>
                   </div>
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    variant="outline"
                     onClick={() => {
-                      if (confirm('Passkey wirklich löschen?')) {
-                        deletePasskey.mutate(passkey.id);
-                      }
+                      const password = prompt('Passwort eingeben, um 2FA zu deaktivieren:');
+                      if (password) disable2FA.mutate(password);
                     }}
-                    data-testid={`button-delete-passkey-${passkey.id}`}
+                    data-testid="button-disable-2fa"
                   >
-                    <Trash size={18} weight="bold" />
+                    2FA deaktivieren
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <Button
+                  onClick={() => setup2FA.mutate()}
+                  disabled={setup2FA.isPending}
+                  data-testid="button-setup-2fa"
+                >
+                  <Shield size={20} weight="bold" className="mr-2" />
+                  {setup2FA.isPending ? '2FA wird eingerichtet...' : '2FA einrichten'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Passkeys Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key size={24} weight="bold" />
+                Passkeys (Biometrische Anmeldung)
+              </CardTitle>
+              <CardDescription>
+                Melden Sie sich mit Face ID, Touch ID oder Windows Hello an
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setShowPasskeyDialog(true)}
+                data-testid="button-add-passkey"
+              >
+                <Plus size={20} weight="bold" className="mr-2" />
+                Passkey hinzufügen
+              </Button>
+
+              {passkeys.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-medium">Ihre Passkeys:</h3>
+                  {passkeys.map((passkey: any) => (
+                    <div
+                      key={passkey.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{passkey.deviceName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Erstellt: {new Date(passkey.createdAt).toLocaleDateString('de-DE')}
+                          {passkey.lastUsedAt && ` • Zuletzt verwendet: ${new Date(passkey.lastUsedAt).toLocaleDateString('de-DE')}`}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (confirm('Passkey wirklich löschen?')) {
+                            deletePasskey.mutate(passkey.id);
+                          }
+                        }}
+                        data-testid={`button-delete-passkey-${passkey.id}`}
+                      >
+                        <Trash size={18} weight="bold" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* 2FA Setup Dialog */}
       <Dialog open={show2FADialog} onOpenChange={setShow2FADialog}>

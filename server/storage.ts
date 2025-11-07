@@ -6,7 +6,13 @@ import {
   type Release, type InsertRelease,
   type ArtistRegistrationLink, type InsertArtistRegistrationLink,
   type StreamingService, type InsertStreamingService,
-  type WebAuthnCredential, type InsertWebAuthnCredential
+  type WebAuthnCredential, type InsertWebAuthnCredential,
+  type UserSettings, type InsertUserSettings,
+  type UserStats, type InsertUserStats,
+  type Achievement, type InsertAchievement,
+  type ArtistProfile, type InsertArtistProfile,
+  type Lyrics, type InsertLyrics,
+  type StreamingEvent, type InsertStreamingEvent
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -59,6 +65,44 @@ export interface IStorage {
   createStreamingService(service: InsertStreamingService): Promise<StreamingService>;
   updateStreamingService(id: string, data: Partial<StreamingService>): Promise<StreamingService | undefined>;
   deleteStreamingService(id: string): Promise<boolean>;
+  
+  // User Settings
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
+  updateUserSettings(userId: string, data: Partial<UserSettings>): Promise<UserSettings | undefined>;
+  
+  // User Stats
+  getUserStats(userId: string): Promise<UserStats[]>;
+  getTopArtists(userId: string, limit?: number): Promise<UserStats[]>;
+  recordPlayback(userId: string, artistName: string, songId: string, songTitle: string, durationMinutes: number): Promise<void>;
+  
+  // Achievements
+  getUserAchievements(userId: string): Promise<Achievement[]>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  markAchievementShared(achievementId: string): Promise<boolean>;
+  
+  // Artist Profiles
+  getArtistProfile(userId: string): Promise<ArtistProfile | undefined>;
+  getArtistProfileByName(artistName: string): Promise<ArtistProfile | undefined>;
+  createArtistProfile(profile: InsertArtistProfile): Promise<ArtistProfile>;
+  updateArtistProfile(id: string, data: Partial<ArtistProfile>): Promise<ArtistProfile | undefined>;
+  
+  // Lyrics
+  getLyricsByReleaseId(releaseId: string): Promise<Lyrics | undefined>;
+  createLyrics(lyrics: InsertLyrics): Promise<Lyrics>;
+  updateLyrics(id: string, data: Partial<Lyrics>): Promise<Lyrics | undefined>;
+  deleteLyrics(id: string): Promise<boolean>;
+  
+  // Streaming Events
+  recordStreamingEvent(event: InsertStreamingEvent): Promise<StreamingEvent>;
+  getStreamingEventsByRelease(releaseId: string): Promise<StreamingEvent[]>;
+  getStreamingAnalytics(releaseId: string): Promise<{
+    totalStreams: number;
+    totalMinutes: number;
+    topCountries: Array<{ country: string; streams: number }>;
+    topCities: Array<{ city: string; streams: number }>;
+    platformBreakdown: Array<{ platform: string; streams: number }>;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -70,8 +114,13 @@ export class MemStorage implements IStorage {
   private artistLinks: Map<string, ArtistRegistrationLink>;
   private streamingServices: Map<string, StreamingService>;
   private adminSessions: Map<string, { username: string; expiresAt: Date }>;
-
   private webauthnCredentials: Map<string, WebAuthnCredential>;
+  private userSettings: Map<string, UserSettings>;
+  private userStats: Map<string, UserStats>;
+  private achievements: Map<string, Achievement>;
+  private artistProfiles: Map<string, ArtistProfile>;
+  private lyrics: Map<string, Lyrics>;
+  private streamingEvents: Map<string, StreamingEvent>;
 
   constructor() {
     this.users = new Map();
@@ -83,6 +132,12 @@ export class MemStorage implements IStorage {
     this.streamingServices = new Map();
     this.adminSessions = new Map();
     this.webauthnCredentials = new Map();
+    this.userSettings = new Map();
+    this.userStats = new Map();
+    this.achievements = new Map();
+    this.artistProfiles = new Map();
+    this.lyrics = new Map();
+    this.streamingEvents = new Map();
   }
 
   async createAdminSession(token: string, username: string): Promise<void> {
@@ -416,7 +471,7 @@ export class MemStorage implements IStorage {
 }
 
 import { db } from './db';
-import { eq } from 'drizzle-orm';
+import { eq, sql as drizzleSql, desc, and } from 'drizzle-orm';
 import {
   users,
   playlists,
@@ -426,7 +481,13 @@ import {
   artistRegistrationLinks,
   streamingServices,
   webauthnCredentials,
-  adminSessions
+  adminSessions,
+  userSettings,
+  userStats,
+  achievements,
+  artistProfiles,
+  lyrics,
+  streamingEvents
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -461,7 +522,7 @@ class DbStorage implements IStorage {
   }
 
   async updateUserAppleToken(userId: string, token: string): Promise<User | undefined> {
-    const result = await db.update(users).set({ appleMusicToken: token }).where(eq(users.id, userId)).returning();
+    const result = await db.update(users).set({ appleToken: token }).where(eq(users.id, userId)).returning();
     return result[0];
   }
 
@@ -641,6 +702,175 @@ class DbStorage implements IStorage {
   async deleteWebAuthnCredential(id: string): Promise<boolean> {
     const result = await db.delete(webauthnCredentials).where(eq(webauthnCredentials.id, id));
     return result.rowCount > 0;
+  }
+
+  // User Settings
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
+    return result[0];
+  }
+
+  async createUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
+    const result = await db.insert(userSettings).values(settings).returning();
+    return result[0];
+  }
+
+  async updateUserSettings(userId: string, data: Partial<UserSettings>): Promise<UserSettings | undefined> {
+    const result = await db.update(userSettings).set({ ...data, updatedAt: new Date() }).where(eq(userSettings.userId, userId)).returning();
+    return result[0];
+  }
+
+  // User Stats
+  async getUserStats(userId: string): Promise<UserStats[]> {
+    return db.select().from(userStats).where(eq(userStats.userId, userId));
+  }
+
+  async getTopArtists(userId: string, limit: number = 10): Promise<UserStats[]> {
+    return db.select().from(userStats).where(eq(userStats.userId, userId)).orderBy(desc(userStats.totalMinutes)).limit(limit);
+  }
+
+  async recordPlayback(userId: string, artistName: string, songId: string, songTitle: string, durationMinutes: number): Promise<void> {
+    const existing = await db.select().from(userStats)
+      .where(and(
+        eq(userStats.userId, userId),
+        eq(userStats.songId, songId)
+      ))
+      .limit(1);
+
+    if (existing[0]) {
+      await db.update(userStats)
+        .set({
+          playCount: existing[0].playCount + 1,
+          totalMinutes: existing[0].totalMinutes + durationMinutes,
+          lastPlayedAt: new Date()
+        })
+        .where(eq(userStats.id, existing[0].id));
+    } else {
+      await db.insert(userStats).values({
+        userId,
+        artistName,
+        songId,
+        songTitle,
+        playCount: 1,
+        totalMinutes: durationMinutes
+      });
+    }
+  }
+
+  // Achievements
+  async getUserAchievements(userId: string): Promise<Achievement[]> {
+    return db.select().from(achievements).where(eq(achievements.userId, userId)).orderBy(desc(achievements.unlockedAt));
+  }
+
+  async createAchievement(achievement: InsertAchievement): Promise<Achievement> {
+    const result = await db.insert(achievements).values(achievement).returning();
+    return result[0];
+  }
+
+  async markAchievementShared(achievementId: string): Promise<boolean> {
+    const result = await db.update(achievements).set({ isShared: true }).where(eq(achievements.id, achievementId));
+    return result.rowCount > 0;
+  }
+
+  // Artist Profiles
+  async getArtistProfile(userId: string): Promise<ArtistProfile | undefined> {
+    const result = await db.select().from(artistProfiles).where(eq(artistProfiles.userId, userId)).limit(1);
+    return result[0];
+  }
+
+  async getArtistProfileByName(artistName: string): Promise<ArtistProfile | undefined> {
+    const result = await db.select().from(artistProfiles).where(eq(artistProfiles.artistName, artistName)).limit(1);
+    return result[0];
+  }
+
+  async createArtistProfile(profile: InsertArtistProfile): Promise<ArtistProfile> {
+    const result = await db.insert(artistProfiles).values(profile).returning();
+    return result[0];
+  }
+
+  async updateArtistProfile(id: string, data: Partial<ArtistProfile>): Promise<ArtistProfile | undefined> {
+    const result = await db.update(artistProfiles).set(data).where(eq(artistProfiles.id, id)).returning();
+    return result[0];
+  }
+
+  // Lyrics
+  async getLyricsByReleaseId(releaseId: string): Promise<Lyrics | undefined> {
+    const result = await db.select().from(lyrics).where(eq(lyrics.releaseId, releaseId)).limit(1);
+    return result[0];
+  }
+
+  async createLyrics(lyricsData: InsertLyrics): Promise<Lyrics> {
+    const result = await db.insert(lyrics).values(lyricsData).returning();
+    return result[0];
+  }
+
+  async updateLyrics(id: string, data: Partial<Lyrics>): Promise<Lyrics | undefined> {
+    const result = await db.update(lyrics).set({ ...data, updatedAt: new Date() }).where(eq(lyrics.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteLyrics(id: string): Promise<boolean> {
+    const result = await db.delete(lyrics).where(eq(lyrics.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Streaming Events
+  async recordStreamingEvent(event: InsertStreamingEvent): Promise<StreamingEvent> {
+    const result = await db.insert(streamingEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getStreamingEventsByRelease(releaseId: string): Promise<StreamingEvent[]> {
+    return db.select().from(streamingEvents).where(eq(streamingEvents.releaseId, releaseId));
+  }
+
+  async getStreamingAnalytics(releaseId: string): Promise<{
+    totalStreams: number;
+    totalMinutes: number;
+    topCountries: Array<{ country: string; streams: number }>;
+    topCities: Array<{ city: string; streams: number }>;
+    platformBreakdown: Array<{ platform: string; streams: number }>;
+  }> {
+    const events = await this.getStreamingEventsByRelease(releaseId);
+    
+    const totalStreams = events.length;
+    const totalMinutes = events.reduce((sum, e) => sum + (e.durationSeconds / 60), 0);
+    
+    const countryMap = new Map<string, number>();
+    const cityMap = new Map<string, number>();
+    const platformMap = new Map<string, number>();
+    
+    events.forEach(e => {
+      if (e.country) {
+        countryMap.set(e.country, (countryMap.get(e.country) || 0) + 1);
+      }
+      if (e.city) {
+        cityMap.set(e.city, (cityMap.get(e.city) || 0) + 1);
+      }
+      platformMap.set(e.platform, (platformMap.get(e.platform) || 0) + 1);
+    });
+    
+    const topCountries = Array.from(countryMap.entries())
+      .map(([country, streams]) => ({ country, streams }))
+      .sort((a, b) => b.streams - a.streams)
+      .slice(0, 10);
+    
+    const topCities = Array.from(cityMap.entries())
+      .map(([city, streams]) => ({ city, streams }))
+      .sort((a, b) => b.streams - a.streams)
+      .slice(0, 10);
+    
+    const platformBreakdown = Array.from(platformMap.entries())
+      .map(([platform, streams]) => ({ platform, streams }))
+      .sort((a, b) => b.streams - a.streams);
+    
+    return {
+      totalStreams,
+      totalMinutes,
+      topCountries,
+      topCities,
+      platformBreakdown
+    };
   }
 }
 

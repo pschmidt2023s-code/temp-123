@@ -21,6 +21,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Settings from "@/pages/Settings";
+import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/settings" component={Settings} />
+      <Route path="/dashboard" component={Dashboard} />
       {!isAdminRoute && !isAuthRoute && <Route path="/" component={Home} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/search" component={Search} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/album/:id" component={Album} />}
