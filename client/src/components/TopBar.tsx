@@ -28,8 +28,8 @@ export function TopBar() {
 
   return (
     <header 
-      className="glass fixed top-0 z-50 flex items-center justify-between px-8 border-b border-border"
-      style={{ height: '64px', left: '241px', right: '0' }}
+      className="glass fixed top-0 z-50 flex items-center justify-between px-4 md:px-8 border-b border-border left-0 md:left-[241px] right-0"
+      style={{ height: '64px' }}
     >
       <form onSubmit={handleSearch} className="flex-1 max-w-xl">
         <div className="relative">
@@ -49,9 +49,9 @@ export function TopBar() {
         </div>
       </form>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {isAuthorized && (
-          <Badge variant="default" className="bg-primary text-primary-foreground">
+          <Badge variant="default" className="bg-primary text-primary-foreground hidden md:inline-flex">
             Apple Music
           </Badge>
         )}
@@ -61,7 +61,7 @@ export function TopBar() {
           size="default"
           onClick={handleAuthToggle}
           disabled={isLoading}
-          className="gap-2"
+          className="gap-2 hidden md:flex"
           data-testid="button-auth"
         >
           {isLoading ? (
@@ -76,6 +76,22 @@ export function TopBar() {
               <SignIn size={18} weight="bold" />
               Mit Apple Music anmelden
             </>
+          )}
+        </Button>
+        
+        {/* Mobile Auth Icon Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleAuthToggle}
+          disabled={isLoading}
+          className="md:hidden"
+          data-testid="button-auth-mobile"
+        >
+          {isAuthorized ? (
+            <SignOut size={20} weight="bold" />
+          ) : (
+            <SignIn size={20} weight="bold" />
           )}
         </Button>
 

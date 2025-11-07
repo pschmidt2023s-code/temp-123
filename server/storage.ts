@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Playlist, type InsertPlaylist } from "@shared/schema";
+import { type User, type InsertUser, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -12,15 +12,22 @@ export interface IStorage {
   createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
   updatePlaylist(id: string, data: Partial<Playlist>): Promise<Playlist | undefined>;
   deletePlaylist(id: string): Promise<boolean>;
+  
+  getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: string, data: Partial<Subscription>): Promise<Subscription | undefined>;
+  cancelSubscription(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private playlists: Map<string, Playlist>;
+  private subscriptions: Map<string, Subscription>;
 
   constructor() {
     this.users = new Map();
     this.playlists = new Map();
+    this.subscriptions = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -61,7 +68,10 @@ export class MemStorage implements IStorage {
   async createPlaylist(insertPlaylist: InsertPlaylist): Promise<Playlist> {
     const id = randomUUID();
     const playlist: Playlist = { 
-      ...insertPlaylist, 
+      ...insertPlaylist,
+      userId: insertPlaylist.userId || null,
+      description: insertPlaylist.description || null,
+      coverUrl: insertPlaylist.coverUrl || null,
       id,
       isPublic: insertPlaylist.isPublic ?? true,
     };
@@ -79,6 +89,43 @@ export class MemStorage implements IStorage {
 
   async deletePlaylist(id: string): Promise<boolean> {
     return this.playlists.delete(id);
+  }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    return Array.from(this.subscriptions.values()).find(
+      (sub) => sub.userId === userId && sub.status === 'active',
+    );
+  }
+
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const id = randomUUID();
+    const subscription: Subscription = {
+      ...insertSubscription,
+      id,
+      startDate: new Date(),
+      endDate: insertSubscription.endDate || null,
+      autoRenew: insertSubscription.autoRenew ?? true,
+      status: insertSubscription.status || 'active',
+    };
+    this.subscriptions.set(id, subscription);
+    return subscription;
+  }
+
+  async updateSubscription(id: string, data: Partial<Subscription>): Promise<Subscription | undefined> {
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return undefined;
+    const updated = { ...subscription, ...data };
+    this.subscriptions.set(id, updated);
+    return updated;
+  }
+
+  async cancelSubscription(id: string): Promise<boolean> {
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return false;
+    subscription.status = 'cancelled';
+    subscription.autoRenew = false;
+    this.subscriptions.set(id, subscription);
+    return true;
   }
 }
 

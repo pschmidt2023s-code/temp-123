@@ -26,23 +26,20 @@ export function Card({ item, onClick }: CardProps) {
 
   return (
     <div
-      className="group relative p-4 rounded-lg glass card-hover-lift cursor-pointer w-[232px]"
+      className="group relative p-3 md:p-4 rounded-lg glass card-hover-lift cursor-pointer w-[156px] md:w-[232px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
       data-testid={`card-${item.type}-${item.id}`}
-      style={{ width: '232px' }}
     >
       <div 
-        className="relative mb-4 rounded-md overflow-hidden bg-secondary"
-        style={{ width: '200px', height: '200px' }}
+        className="relative mb-3 md:mb-4 rounded-md overflow-hidden bg-secondary w-[132px] h-[132px] md:w-[200px] md:h-[200px]"
       >
         {artwork && (
           <img
             src={artwork}
             alt={item.attributes.name}
             className="w-full h-full object-cover"
-            style={{ width: '200px', height: '200px' }}
             loading="lazy"
           />
         )}
@@ -57,23 +54,23 @@ export function Card({ item, onClick }: CardProps) {
           <Button
             size="icon"
             onClick={handlePlay}
-            className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg play-button-scale"
+            className="absolute bottom-2 right-2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary text-primary-foreground shadow-lg play-button-scale"
             data-testid={`button-play-${item.id}`}
           >
-            <Play size={24} weight="fill" />
+            <Play size={20} weight="fill" className="md:w-6 md:h-6" />
           </Button>
         )}
       </div>
 
       <div className="space-y-1">
         <h3
-          className="font-medium text-foreground truncate text-body"
+          className="font-medium text-foreground truncate text-sm md:text-body"
           data-testid={`text-title-${item.id}`}
         >
           {item.attributes.name}
         </h3>
         <p
-          className="text-sm text-muted-foreground truncate"
+          className="text-xs md:text-sm text-muted-foreground truncate"
           data-testid={`text-artist-${item.id}`}
         >
           {item.attributes.artistName}

@@ -148,12 +148,12 @@ export function Player() {
       )}
       
       <footer 
-        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-4"
+        className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-2 md:px-4"
         style={{ height: '90px', minHeight: '90px', maxHeight: '90px' }}
       >
-        <div className="h-full flex items-center justify-between gap-4">
+        <div className="h-full flex flex-col md:flex-row items-center justify-between gap-1 md:gap-4">
         {/* Left: Current Track Info */}
-        <div className="flex items-center gap-4 min-w-[180px] w-[30%]">
+        <div className="hidden md:flex items-center gap-4 min-w-[180px] w-[30%]">
           {artwork && (
             <img
               src={artwork}
@@ -181,8 +181,27 @@ export function Player() {
         </div>
 
         {/* Center: Playback Controls */}
-        <div className="flex-1 flex flex-col items-center gap-2 max-w-[40%]">
-          <div className="flex items-center gap-4">
+        <div className="flex-1 flex flex-col items-center gap-1 md:gap-2 max-w-full md:max-w-[40%] w-full">
+          {/* Mobile: Track info on top */}
+          <div className="md:hidden flex items-center gap-2 w-full px-2">
+            {artwork && (
+              <img
+                src={artwork}
+                alt={currentTrack.attributes.name}
+                className="w-10 h-10 rounded object-cover"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-foreground truncate">
+                {currentTrack.attributes.name}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {currentTrack.attributes.artistName}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
@@ -255,8 +274,8 @@ export function Player() {
           </div>
         </div>
 
-        {/* Right: Volume & Extra Controls */}
-        <div className="flex items-center gap-2 justify-end min-w-[180px] w-[30%]">
+        {/* Right: Volume & Extra Controls - Hidden on mobile */}
+        <div className="hidden md:flex items-center gap-2 justify-end min-w-[180px] w-[30%]">
           <Button
             variant="ghost"
             size="icon"

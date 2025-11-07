@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/Sidebar";
+import { MobileNav } from "@/components/MobileNav";
 import { TopBar } from "@/components/TopBar";
 import { Player } from "@/components/Player";
 import Home from "@/pages/Home";
@@ -41,16 +42,29 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen bg-background text-foreground">
-          <Sidebar />
+          {/* Desktop Sidebar - hidden on mobile */}
+          <div className="hidden md:block">
+            <Sidebar />
+          </div>
           
-          <div style={{ marginLeft: '241px' }}>
+          {/* Main Content - responsive margin */}
+          <div className="md:ml-[241px]">
             <TopBar />
             
-            <main style={{ paddingTop: '64px', paddingBottom: '90px' }} className="px-8">
+            <main 
+              className="px-4 md:px-8"
+              style={{ 
+                paddingTop: '64px', 
+                paddingBottom: window.innerWidth < 768 ? '154px' : '90px' 
+              }}
+            >
               <Router />
             </main>
           </div>
 
+          {/* Mobile Bottom Navigation - hidden on desktop */}
+          <MobileNav />
+          
           <Player />
         </div>
         <Toaster />
