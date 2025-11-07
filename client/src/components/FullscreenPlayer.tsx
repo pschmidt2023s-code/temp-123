@@ -244,18 +244,18 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
             </div>
           </div>
 
-        {/* Album Art */}
-        <div className="flex-1 flex items-center justify-center mb-8">
+        {/* Album Art - 4x4 Format */}
+        <div className="flex-1 flex items-center justify-center mb-8 px-4">
           <div
-            className="relative transition-transform duration-500"
+            className="relative transition-transform duration-500 w-full max-w-sm md:max-w-md"
             style={{
               transform: isPulsing ? 'scale(1.02)' : 'scale(1)',
             }}
           >
             <img
-              src={musicKit.getArtworkURL(currentTrack.attributes.artwork, 500)}
+              src={musicKit.getArtworkURL(currentTrack.attributes.artwork, 600)}
               alt={currentTrack.attributes.name}
-              className="w-full max-w-md md:max-w-lg aspect-square rounded-2xl shadow-2xl"
+              className="w-full aspect-square rounded-2xl shadow-2xl object-cover"
             />
             <div
               className="absolute inset-0 rounded-2xl transition-all duration-500"

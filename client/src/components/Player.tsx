@@ -277,19 +277,20 @@ function PlayerComponent() {
         )}
       </AnimatePresence>
       
-      <motion.footer 
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0.5, bottom: 0 }}
-        onDragEnd={handleDragEnd}
-        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl border-t border-border touch-none"
-        style={{ 
-          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-          height: '90px',
-          zIndex: 70
-        }}
-        data-testid="player-bar"
-      >
+      {!showFullscreen && (
+        <motion.footer 
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0.5, bottom: 0 }}
+          onDragEnd={handleDragEnd}
+          className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl border-t border-border touch-none"
+          style={{ 
+            bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+            height: '90px',
+            zIndex: 70
+          }}
+          data-testid="player-bar"
+        >
         <div className="h-full flex flex-col md:flex-row items-center justify-between gap-1 md:gap-4">
         {/* Left: Current Track Info */}
         <div className="hidden md:flex items-center gap-4 min-w-[180px] w-[30%]">
@@ -487,6 +488,7 @@ function PlayerComponent() {
         <div className="md:hidden absolute top-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-muted-foreground/30 rounded-full" />
       </div>
       </motion.footer>
+      )}
     </>
   );
 }

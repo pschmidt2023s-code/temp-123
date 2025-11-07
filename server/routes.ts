@@ -1304,13 +1304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/settings/:userId', async (req, res) => {
     try {
-      const result = insertUserSettingsSchema.partial().safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ error: 'Invalid settings data', details: result.error });
-      }
-      const settings = await storage.updateUserSettings(req.params.userId, result.data);
+      const settings = await storage.updateUserSettings(req.params.userId, req.body);
       res.json(settings);
     } catch (error) {
+      console.error('Settings update error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
