@@ -21,17 +21,33 @@ export default function Pricing() {
     try {
       setCheckoutLoading(tier);
 
-      // Create Stripe Checkout Session
+      // Check if upgrade (existing subscription)
+      const isUpgrade = subscription && subscription.tier !== 'free' && subscription.tier !== tier;
+
+      // Create Stripe Checkout Session (supports both new subscriptions and upgrades)
       const response = await apiRequest('POST', '/api/create-checkout-session', {
         tier,
         userId,
+        isUpgrade,
       });
 
-      const { url } = await response.json();
+      const data = await response.json();
 
-      if (url) {
-        // Redirect to Stripe Checkout
-        window.location.href = url;
+      // If upgrade was successful (no redirect URL)
+      if (data.success && !data.url) {
+        toast({
+          title: 'Upgrade erfolgreich!',
+          description: `Dein Abo wurde auf ${tier.charAt(0).toUpperCase() + tier.slice(1)} aktualisiert. Die Differenz wurde anteilig berechnet.`,
+        });
+        setCheckoutLoading(null);
+        // Reload page to update UI
+        setTimeout(() => window.location.reload(), 2000);
+        return;
+      }
+
+      // Otherwise redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
       } else {
         throw new Error('No checkout URL returned');
       }

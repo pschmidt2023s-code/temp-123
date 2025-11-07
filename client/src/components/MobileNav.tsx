@@ -32,15 +32,16 @@ export function MobileNav() {
     }
   };
 
-  const familyPath = !subscription ? '/pricing' : '/live-rooms';
-  const familyLabel = !subscription ? 'Abos' : 'Familie';
+  const familyPath = !subscription || subscription.tier === 'free' ? '/pricing' : '/live-rooms';
+  const hasPaidSubscription = subscription && subscription.tier !== 'free';
+  const familyLabel = 'Abos';
 
   const navItems = [
-    { path: '/', icon: House, label: 'Start', onClick: undefined },
-    { path: '/search', icon: MagnifyingGlass, label: 'Suchen', onClick: undefined },
-    { path: '/library', icon: Books, label: 'Bibliothek', onClick: undefined },
-    { path: '/liked', icon: Heart, label: 'Favoriten', onClick: undefined },
-    { path: familyPath, icon: Users, label: familyLabel, onClick: handleFamilyClick },
+    { path: '/', icon: House, label: 'Start', onClick: undefined, showBadge: false },
+    { path: '/search', icon: MagnifyingGlass, label: 'Suchen', onClick: undefined, showBadge: false },
+    { path: '/library', icon: Books, label: 'Bibliothek', onClick: undefined, showBadge: false },
+    { path: '/liked', icon: Heart, label: 'Favoriten', onClick: undefined, showBadge: false },
+    { path: familyPath, icon: Users, label: familyLabel, onClick: handleFamilyClick, showBadge: hasPaidSubscription },
   ];
 
   return (
@@ -49,6 +50,7 @@ export function MobileNav() {
       style={{ 
         height: '64px',
         bottom: '90px',
+        paddingBottom: 'env(safe-area-inset-bottom)',
         zIndex: 60
       }}
     >
@@ -60,13 +62,18 @@ export function MobileNav() {
           return (
             <Link key={item.path} href={item.path} onClick={item.onClick}>
               <button
-                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors active:scale-95 ${
+                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors active:scale-95 relative ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
                 <Icon size={24} weight="bold" />
                 <span className="text-[10px] font-medium">{item.label}</span>
+                {item.showBadge && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[8px] font-bold bg-primary text-primary-foreground rounded-full">
+                    Fam
+                  </span>
+                )}
               </button>
             </Link>
           );

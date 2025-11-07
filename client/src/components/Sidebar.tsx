@@ -38,12 +38,13 @@ export function Sidebar() {
     { icon: Books, label: 'Deine Bibliothek', path: '/library' },
   ];
 
-  const familyPath = !subscription ? '/pricing' : '/live-rooms';
-  const familyLabel = !subscription ? 'Abos' : 'Familie';
+  const familyPath = !subscription || subscription.tier === 'free' ? '/pricing' : '/live-rooms';
+  const hasPaidSubscription = subscription && subscription.tier !== 'free';
+  const familyLabel = 'Abos';
 
   const libraryItems = [
     { icon: Heart, label: 'Deine Lieblingssongs', path: '/liked' },
-    { icon: Users, label: familyLabel, path: familyPath, onClick: handleFamilyClick },
+    { icon: Users, label: familyLabel, path: familyPath, onClick: handleFamilyClick, showBadge: hasPaidSubscription },
   ];
 
   return (
@@ -105,6 +106,11 @@ export function Sidebar() {
                 >
                   <Icon size={24} weight="bold" className={isActive ? 'text-primary' : ''} />
                   <span className="text-body font-medium">{item.label}</span>
+                  {item.showBadge && (
+                    <span className="ml-auto px-2 py-0.5 text-[10px] font-bold bg-primary text-primary-foreground rounded-full">
+                      Familie
+                    </span>
+                  )}
                 </Button>
               </Link>
             );

@@ -230,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe Checkout Session for Subscriptions
   app.post('/api/create-checkout-session', async (req, res) => {
     try {
-      const { tier, userId } = req.body;
+      const { tier, userId, isUpgrade } = req.body;
       
       if (!tier || !userId) {
         return res.status(400).json({ error: 'Tier and userId required' });
@@ -264,7 +264,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user = await storage.updateUser(userId, { stripeCustomerId: customerId }) || user;
       }
 
-      // Create Stripe Checkout Session
+      // If upgrading existing subscription
+      if (isUpgrade && user.stripeSubscriptionId) {
+        try {
+          // Get current subscription
+          const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+          
+          // Update subscription with new price (proration enabled by default)
+          const updatedSubscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+            items: [{
+              id: subscription.items.data[0].id,
+              price: priceId,
+            }],
+            proration_behavior: 'create_prorations', // Charge/credit difference immediately
+            metadata: {
+              userId,
+              tier,
+            },
+          });
+
+          // Update subscription tier in storage
+          await storage.updateSubscription(userId, { 
+            tier,
+            status: 'active',
+          });
+
+          // Return success without redirect (subscription updated directly)
+          return res.json({ 
+            success: true, 
+            message: 'Subscription upgraded successfully',
+            subscriptionId: updatedSubscription.id 
+          });
+        } catch (upgradeError: any) {
+          console.error('Subscription upgrade error:', upgradeError);
+          // If upgrade fails, fall through to create new checkout session
+        }
+      }
+
+      // Create Stripe Checkout Session for new subscriptions
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
