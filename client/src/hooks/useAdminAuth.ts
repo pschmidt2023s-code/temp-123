@@ -33,16 +33,15 @@ export function useAdminAuth() {
 
   const login = async (username: string, password: string) => {
     try {
-      const res = await apiRequest('POST', '/api/admin/login', { username, password });
-      const response = await res.json();
+      const response = await apiRequest<{ success: boolean; token?: string; username?: string }>('POST', '/api/admin/login', { username, password });
       
       if (response.success && response.token) {
         localStorage.setItem('admin_token', response.token);
-        localStorage.setItem('admin_username', response.username);
+        localStorage.setItem('admin_username', response.username || username);
         setAuthState({
           isAuthenticated: true,
           token: response.token,
-          username: response.username,
+          username: response.username || username,
           isLoading: false,
         });
         return { success: true };
