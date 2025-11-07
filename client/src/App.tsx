@@ -23,6 +23,7 @@ import Register from "@/pages/Register";
 import Settings from "@/pages/Settings";
 import Dashboard from "@/pages/Dashboard";
 import ArtistRegister from "@/pages/ArtistRegister";
+import ArtistPortal from "@/pages/ArtistPortal";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/artist-register/:code" component={ArtistRegister} />
+      <Route path="/artist-portal" component={ArtistPortal} />
       <Route path="/settings" component={Settings} />
       <Route path="/dashboard" component={Dashboard} />
       {!isAdminRoute && !isAuthRoute && <Route path="/" component={Home} />}

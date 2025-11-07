@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple } from '@phosphor-icons/react';
+import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple, Quotes } from '@phosphor-icons/react';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Release, ArtistRegistrationLink, StreamingService } from '@shared/schema';
+import type { Release, ArtistRegistrationLink, StreamingService, Lyrics } from '@shared/schema';
 import { releaseTypeEnum } from '@shared/schema';
 import { format } from 'date-fns';
 
@@ -61,10 +61,14 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="releases" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="releases" data-testid="tab-releases">
               <MusicNotes size={20} weight="bold" className="mr-2" />
               Releases
+            </TabsTrigger>
+            <TabsTrigger value="lyrics" data-testid="tab-lyrics">
+              <Quotes size={20} weight="bold" className="mr-2" />
+              Lyrics
             </TabsTrigger>
             <TabsTrigger value="artists" data-testid="tab-artists">
               <LinkIcon size={20} weight="bold" className="mr-2" />
@@ -84,6 +88,10 @@ export default function AdminDashboard() {
             <ReleasesTab />
           </TabsContent>
 
+          <TabsContent value="lyrics">
+            <LyricsTab />
+          </TabsContent>
+
           <TabsContent value="artists">
             <ArtistLinksTab />
           </TabsContent>
@@ -98,6 +106,221 @@ export default function AdminDashboard() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+function LyricsTab() {
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedRelease, setSelectedRelease] = useState<string>('');
+
+  const { data: releases = [] } = useQuery<Release[]>({
+    queryKey: ['/api/releases'],
+  });
+
+  const { data: allLyrics = [], isLoading } = useQuery<Lyrics[]>({
+    queryKey: ['/api/admin/lyrics/all'],
+  });
+
+  const createLyrics = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/admin/lyrics', data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/lyrics/all'] });
+      toast({
+        title: "Lyrics hinzugefügt",
+      });
+      setIsDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: error.message || "Lyrics konnten nicht hinzugefügt werden",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLyrics = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/admin/lyrics/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/lyrics/all'] });
+      toast({
+        title: "Lyrics gelöscht",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: error.message || "Lyrics konnten nicht gelöscht werden",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const timedLinesText = formData.get('timedLines') as string;
+    let timedLines = null;
+    
+    if (timedLinesText && timedLinesText.trim()) {
+      try {
+        timedLines = JSON.parse(timedLinesText);
+      } catch (error) {
+        toast({
+          title: "Fehler",
+          description: "Ungültiges JSON-Format für Timed Lines",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    createLyrics.mutate({
+      releaseId: selectedRelease,
+      content: formData.get('content'),
+      timedLines: timedLines ? JSON.stringify(timedLines) : null,
+      language: formData.get('language') || 'de',
+    });
+  };
+
+  return (
+    <Card className="glass">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Lyrics-Verwaltung</CardTitle>
+            <CardDescription>Lyrics mit Word-by-Word Timing hinzufügen</CardDescription>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-lyrics">
+                <Plus size={20} weight="bold" className="mr-2" />
+                Lyrics hinzufügen
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Neue Lyrics hinzufügen</DialogTitle>
+                <CardDescription>
+                  Fügen Sie synchronisierte Lyrics für ein Release hinzu
+                </CardDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="releaseId">Release</Label>
+                  <Select value={selectedRelease} onValueChange={setSelectedRelease} required>
+                    <SelectTrigger data-testid="select-release">
+                      <SelectValue placeholder="Release auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {releases.map((release) => (
+                        <SelectItem key={release.id} value={release.id}>
+                          {release.title} - {release.artistName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="content">Lyrics-Text</Label>
+                  <Textarea
+                    id="content"
+                    name="content"
+                    required
+                    rows={8}
+                    placeholder="Vollständiger Lyrics-Text..."
+                    data-testid="input-lyrics-content"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timedLines">Timed Lines (JSON, optional)</Label>
+                  <Textarea
+                    id="timedLines"
+                    name="timedLines"
+                    rows={10}
+                    placeholder={'[\n  {\n    "startTime": 0,\n    "endTime": 4000,\n    "text": "Beispielzeile",\n    "words": [\n      {"word": "Beispiel", "startTime": 0, "endTime": 2000},\n      {"word": "zeile", "startTime": 2000, "endTime": 4000}\n    ]\n  }\n]'}
+                    className="font-mono text-xs"
+                    data-testid="input-timed-lines"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Zeiten in Millisekunden. Optional: Leer lassen für einfache Lyrics.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="language">Sprache</Label>
+                  <Select name="language" defaultValue="de">
+                    <SelectTrigger data-testid="select-language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="de">Deutsch</SelectItem>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Español</SelectItem>
+                      <SelectItem value="fr">Français</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={createLyrics.isPending} data-testid="button-submit-lyrics">
+                  {createLyrics.isPending ? 'Erstelle...' : 'Lyrics hinzufügen'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Lädt Lyrics...</div>
+        ) : allLyrics.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">Keine Lyrics vorhanden</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Release</TableHead>
+                <TableHead>Sprache</TableHead>
+                <TableHead>Timing</TableHead>
+                <TableHead>Erstellt</TableHead>
+                <TableHead>Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allLyrics.map((lyrics: any) => (
+                <TableRow key={lyrics.id}>
+                  <TableCell>{lyrics.releaseTitle || lyrics.releaseId}</TableCell>
+                  <TableCell>{lyrics.language?.toUpperCase()}</TableCell>
+                  <TableCell>
+                    {lyrics.timedLines ? 'Synced' : 'Einfach'}
+                  </TableCell>
+                  <TableCell>{format(new Date(lyrics.createdAt!), 'dd.MM.yyyy')}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteLyrics.mutate(lyrics.id)}
+                      data-testid={`button-delete-lyrics-${lyrics.id}`}
+                    >
+                      <Trash size={20} weight="bold" className="text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
