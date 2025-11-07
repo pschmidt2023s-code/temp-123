@@ -49,15 +49,15 @@ export function Card({ item, onClick }: CardProps) {
           <div className="absolute inset-0 bg-black/20 transition-all duration-200" />
         )}
 
-        {/* Play Button */}
+        {/* Play Button - Centered */}
         {isHovered && (
           <Button
             size="icon"
             onClick={handlePlay}
-            className="absolute bottom-2 right-2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary text-primary-foreground shadow-lg play-button-scale"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground shadow-lg play-button-scale"
             data-testid={`button-play-${item.id}`}
           >
-            <Play size={20} weight="fill" className="md:w-6 md:h-6" />
+            <Play size={24} weight="fill" className="md:w-7 md:h-7" />
           </Button>
         )}
       </div>

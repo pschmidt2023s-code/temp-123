@@ -86,9 +86,10 @@ function App() {
             <TopBar />
             
             <main 
-              className="px-4 md:px-8 pb-[154px] md:pb-[90px]"
+              className="px-4 md:px-8"
               style={{ 
-                paddingTop: '64px'
+                paddingTop: 'calc(154px)',
+                paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))'
               }}
             >
               <Router />

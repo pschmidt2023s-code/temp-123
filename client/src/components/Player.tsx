@@ -153,13 +153,14 @@ function PlayerComponent() {
       )}
       
       <footer 
-        className="fixed left-0 right-0 border-t border-border px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl"
+        className="fixed left-0 right-0 px-2 md:px-4 bg-background/95 backdrop-blur-lg shadow-2xl md:border-t border-border"
         style={{ 
-          bottom: 0,
-          height: 'calc(90px + env(safe-area-inset-bottom, 0px))',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          top: 'calc(64px + env(safe-area-inset-top, 0px))',
+          bottom: 'auto',
+          height: '90px',
           zIndex: 50
         }}
+        data-testid="player-bar"
       >
         <div className="h-full flex flex-col md:flex-row items-center justify-between gap-1 md:gap-4">
         {/* Left: Current Track Info */}

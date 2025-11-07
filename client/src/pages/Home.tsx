@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 function convertReleaseToMKItem(release: Release): MKMediaItem {
   return {
     id: release.id!,
-    type: 'albums',
+    type: 'songs',
     attributes: {
       name: release.title,
       artistName: release.artistName,
@@ -25,7 +25,8 @@ function convertReleaseToMKItem(release: Release): MKMediaItem {
             ? release.releaseDate 
             : release.releaseDate.toISOString())
         : undefined,
-    },
+      url: release.audioFilePath || undefined,
+    } as any,
   };
 }
 

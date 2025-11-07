@@ -47,6 +47,14 @@ class MusicKitService {
   }
 
   async play(item: MKMediaItem) {
+    const audioUrl = (item.attributes as any).url;
+    
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play().catch(err => console.warn('Local audio playback failed:', err));
+      return;
+    }
+    
     if (!this.instance) return;
     try {
       await this.instance.setQueue({ [item.type]: [item.id] });

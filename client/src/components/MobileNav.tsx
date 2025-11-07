@@ -27,10 +27,12 @@ export function MobileNav() {
     <nav 
       className="md:hidden fixed left-0 right-0 border-t border-border bg-background/95 backdrop-blur-lg shadow-lg"
       style={{ 
-        height: '64px',
-        bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+        height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        bottom: 0,
         zIndex: 60
       }}
+      data-testid="mobile-nav"
     >
       <div className="h-full flex items-center justify-around px-2">
         {navItems.map((item) => {
