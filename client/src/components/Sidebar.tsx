@@ -1,9 +1,36 @@
 import { Link, useLocation } from 'wouter';
 import { House, MagnifyingGlass, Books, Plus, Heart, Users } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { subscription } = useSubscription('demo-user');
+  const { toast } = useToast();
+
+  const handleFamilyClick = (e: React.MouseEvent) => {
+    if (!subscription) {
+      return;
+    }
+    
+    if (subscription.tier !== 'family') {
+      e.preventDefault();
+      toast({
+        title: "Family-Tier erforderlich",
+        description: "Live Music Rooms sind nur im Family-Abo (€14,99/Monat) verfügbar. Upgrade für synchronisiertes Hören mit bis zu 6 Freunden!",
+        action: (
+          <Button 
+            size="sm" 
+            onClick={() => window.location.href = '/pricing'}
+            data-testid="button-upgrade-to-family"
+          >
+            Jetzt upgraden
+          </Button>
+        ),
+      });
+    }
+  };
 
   const mainNav = [
     { icon: House, label: 'Start', path: '/' },
@@ -11,9 +38,12 @@ export function Sidebar() {
     { icon: Books, label: 'Deine Bibliothek', path: '/library' },
   ];
 
+  const familyPath = !subscription ? '/pricing' : '/live-rooms';
+  const familyLabel = !subscription ? 'Abos' : 'Familie';
+
   const libraryItems = [
     { icon: Heart, label: 'Deine Lieblingssongs', path: '/liked' },
-    { icon: Users, label: 'Live Music Rooms', path: '/live-rooms' },
+    { icon: Users, label: familyLabel, path: familyPath, onClick: handleFamilyClick },
   ];
 
   return (
@@ -65,7 +95,7 @@ export function Sidebar() {
             const Icon = item.icon;
             const isActive = location === item.path;
             return (
-              <Link key={item.path} href={item.path}>
+              <Link key={item.path} href={item.path} onClick={item.onClick}>
                 <Button
                   variant="ghost"
                   className={`w-full justify-start gap-4 h-12 px-4 ${

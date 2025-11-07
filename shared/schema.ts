@@ -28,6 +28,48 @@ export const subscriptions = pgTable("subscriptions", {
   autoRenew: boolean("auto_renew").default(true),
 });
 
+export const adminUsers = pgTable("admin_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default('admin'), // 'admin', 'super_admin'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const releases = pgTable("releases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  artistName: text("artist_name").notNull(),
+  releaseDate: timestamp("release_date").notNull(),
+  coverUrl: text("cover_url"),
+  trackCount: integer("track_count").default(0),
+  catalogId: text("catalog_id"), // Apple Music Catalog ID
+  isrc: text("isrc"), // International Standard Recording Code
+  upc: text("upc"), // Universal Product Code
+  status: text("status").notNull().default('pending'), // 'pending', 'approved', 'published', 'rejected'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const artistRegistrationLinks = pgTable("artist_registration_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  linkCode: text("link_code").notNull().unique(),
+  artistName: text("artist_name"),
+  email: text("email"),
+  isUsed: boolean("is_used").default(false),
+  usedAt: timestamp("used_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const streamingServices = pgTable("streaming_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  status: text("status").notNull().default('active'), // 'active', 'maintenance', 'disabled'
+  apiEndpoint: text("api_endpoint"),
+  lastChecked: timestamp("last_checked"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
 });
@@ -41,12 +83,41 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   startDate: true,
 });
 
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertReleaseSchema = createInsertSchema(releases).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertArtistRegistrationLinkSchema = createInsertSchema(artistRegistrationLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStreamingServiceSchema = createInsertSchema(streamingServices).omit({
+  id: true,
+  createdAt: true,
+  lastChecked: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
 export type Playlist = typeof playlists.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertRelease = z.infer<typeof insertReleaseSchema>;
+export type Release = typeof releases.$inferSelect;
+export type InsertArtistRegistrationLink = z.infer<typeof insertArtistRegistrationLinkSchema>;
+export type ArtistRegistrationLink = typeof artistRegistrationLinks.$inferSelect;
+export type InsertStreamingService = z.infer<typeof insertStreamingServiceSchema>;
+export type StreamingService = typeof streamingServices.$inferSelect;
 
 export type SubscriptionTier = 'free' | 'plus' | 'premium' | 'family';
 
