@@ -13,6 +13,18 @@ import { setupWebSocket } from "./rooms";
 import bcrypt from "bcrypt";
 import { randomBytes } from "crypto";
 import Stripe from "stripe";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
+import { 
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
+import type { 
+  RegistrationResponseJSON,
+  AuthenticationResponseJSON,
+} from '@simplewebauthn/server/esm/deps';
 
 // Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -414,6 +426,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
+      // Check if 2FA is enabled
+      if (user.twoFactorEnabled) {
+        return res.json({
+          requiresTwoFactor: true,
+          userId: user.id,
+        });
+      }
+
+      // Update last login
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        requiresTwoFactor: false,
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // 2FA verify code
+  app.post('/api/auth/verify-2fa', async (req, res) => {
+    try {
+      const { userId, token } = req.body;
+      
+      if (!userId || !token) {
+        return res.status(400).json({ error: 'User ID and token required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.twoFactorSecret) {
+        return res.status(401).json({ error: 'Invalid request' });
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid code' });
+      }
+
       // Update last login
       await storage.updateUser(user.id, { lastLoginAt: new Date() });
 
@@ -423,7 +483,325 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: user.email,
       });
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('2FA verification error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // 2FA setup - generate secret
+  app.post('/api/auth/2fa/setup', async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const secret = speakeasy.generateSecret({
+        name: `GlassBeats (${user.username})`,
+        length: 32,
+      });
+
+      // Generate backup codes
+      const backupCodes = Array.from({ length: 8 }, () => 
+        randomBytes(4).toString('hex').toUpperCase()
+      );
+
+      // Temporarily store secret (not enabled yet)
+      await storage.updateUser(userId, { 
+        twoFactorSecret: secret.base32,
+        backupCodes,
+      });
+
+      // Generate QR code
+      const qrCode = await QRCode.toDataURL(secret.otpauth_url!);
+
+      res.json({
+        secret: secret.base32,
+        qrCode,
+        backupCodes,
+      });
+    } catch (error) {
+      console.error('2FA setup error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // 2FA enable - verify and activate
+  app.post('/api/auth/2fa/enable', async (req, res) => {
+    try {
+      const { userId, token } = req.body;
+      
+      if (!userId || !token) {
+        return res.status(400).json({ error: 'User ID and token required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.twoFactorSecret) {
+        return res.status(400).json({ error: 'Setup 2FA first' });
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid code' });
+      }
+
+      await storage.updateUser(userId, { twoFactorEnabled: true });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('2FA enable error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // 2FA disable
+  app.post('/api/auth/2fa/disable', async (req, res) => {
+    try {
+      const { userId, password } = req.body;
+      
+      if (!userId || !password) {
+        return res.status(400).json({ error: 'User ID and password required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.passwordHash) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+
+      await storage.updateUser(userId, { 
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        backupCodes: null,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('2FA disable error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // WebAuthn - Generate registration options
+  app.post('/api/auth/webauthn/register-options', async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const existingCredentials = await storage.getWebAuthnCredentialsByUser(userId);
+
+      const options = await generateRegistrationOptions({
+        rpName: 'GlassBeats',
+        rpID: new URL(process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000').hostname,
+        userID: user.id,
+        userName: user.username,
+        userDisplayName: user.username,
+        attestationType: 'none',
+        excludeCredentials: existingCredentials.map(cred => ({
+          id: Buffer.from(cred.credentialId, 'base64'),
+          type: 'public-key',
+          transports: cred.transports as any,
+        })),
+        authenticatorSelection: {
+          residentKey: 'preferred',
+          userVerification: 'preferred',
+        },
+      });
+
+      res.json(options);
+    } catch (error) {
+      console.error('WebAuthn registration options error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // WebAuthn - Verify registration
+  app.post('/api/auth/webauthn/register-verify', async (req, res) => {
+    try {
+      const { userId, response, deviceName } = req.body;
+      
+      if (!userId || !response) {
+        return res.status(400).json({ error: 'User ID and response required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const verification = await verifyRegistrationResponse({
+        response: response as RegistrationResponseJSON,
+        expectedChallenge: response.challenge || '',
+        expectedOrigin: process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000',
+        expectedRPID: new URL(process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000').hostname,
+      });
+
+      if (!verification.verified || !verification.registrationInfo) {
+        return res.status(400).json({ error: 'Verification failed' });
+      }
+
+      const { credentialPublicKey, credentialID, counter } = verification.registrationInfo;
+
+      await storage.createWebAuthnCredential({
+        id: randomBytes(16).toString('hex'),
+        userId: user.id,
+        credentialId: Buffer.from(credentialID).toString('base64'),
+        credentialPublicKey: Buffer.from(credentialPublicKey).toString('base64'),
+        counter,
+        deviceName: deviceName || 'Unknown Device',
+        transports: response.response?.transports || [],
+      });
+
+      res.json({ verified: true });
+    } catch (error) {
+      console.error('WebAuthn registration verify error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // WebAuthn - Generate authentication options
+  app.post('/api/auth/webauthn/login-options', async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: 'Email required' });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const credentials = await storage.getWebAuthnCredentialsByUser(user.id);
+
+      if (credentials.length === 0) {
+        return res.status(400).json({ error: 'No passkeys registered' });
+      }
+
+      const options = await generateAuthenticationOptions({
+        rpID: new URL(process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000').hostname,
+        allowCredentials: credentials.map(cred => ({
+          id: Buffer.from(cred.credentialId, 'base64'),
+          type: 'public-key',
+          transports: cred.transports as any,
+        })),
+        userVerification: 'preferred',
+      });
+
+      res.json({ ...options, userId: user.id });
+    } catch (error) {
+      console.error('WebAuthn login options error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // WebAuthn - Verify authentication
+  app.post('/api/auth/webauthn/login-verify', async (req, res) => {
+    try {
+      const { userId, response } = req.body;
+      
+      if (!userId || !response) {
+        return res.status(400).json({ error: 'User ID and response required' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const credentialId = Buffer.from(response.id, 'base64url').toString('base64');
+      const credential = await storage.getWebAuthnCredential(credentialId);
+
+      if (!credential || credential.userId !== userId) {
+        return res.status(401).json({ error: 'Invalid credential' });
+      }
+
+      const verification = await verifyAuthenticationResponse({
+        response: response as AuthenticationResponseJSON,
+        expectedChallenge: response.challenge || '',
+        expectedOrigin: process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000',
+        expectedRPID: new URL(process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000').hostname,
+        authenticator: {
+          credentialPublicKey: Buffer.from(credential.credentialPublicKey, 'base64'),
+          credentialID: Buffer.from(credential.credentialId, 'base64'),
+          counter: credential.counter,
+        },
+      });
+
+      if (!verification.verified) {
+        return res.status(401).json({ error: 'Verification failed' });
+      }
+
+      // Update counter and last used
+      await storage.updateWebAuthnCredential(credential.id, {
+        counter: verification.authenticationInfo.newCounter,
+        lastUsedAt: new Date(),
+      });
+
+      // Update last login
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+    } catch (error) {
+      console.error('WebAuthn login verify error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get user's passkeys
+  app.get('/api/auth/webauthn/credentials/:userId', async (req, res) => {
+    try {
+      const credentials = await storage.getWebAuthnCredentialsByUser(req.params.userId);
+      
+      // Don't send sensitive data
+      const safeCredentials = credentials.map(({ credentialPublicKey, ...cred }) => cred);
+      
+      res.json(safeCredentials);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Delete passkey
+  app.delete('/api/auth/webauthn/credentials/:id', async (req, res) => {
+    try {
+      const deleted = await storage.deleteWebAuthnCredential(req.params.id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: 'Credential not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });

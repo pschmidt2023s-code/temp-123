@@ -15,6 +15,19 @@ export const users = pgTable("users", {
   lastLoginAt: timestamp("last_login_at"),
   twoFactorSecret: text("two_factor_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  backupCodes: text("backup_codes").array(),
+});
+
+export const webauthnCredentials = pgTable("webauthn_credentials", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  credentialId: text("credential_id").notNull().unique(),
+  credentialPublicKey: text("credential_public_key").notNull(),
+  counter: integer("counter").notNull().default(0),
+  deviceName: text("device_name"),
+  transports: text("transports").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
 });
 
 export const playlists = pgTable("playlists", {
@@ -130,6 +143,14 @@ export type InsertArtistRegistrationLink = z.infer<typeof insertArtistRegistrati
 export type ArtistRegistrationLink = typeof artistRegistrationLinks.$inferSelect;
 export type InsertStreamingService = z.infer<typeof insertStreamingServiceSchema>;
 export type StreamingService = typeof streamingServices.$inferSelect;
+
+export const insertWebAuthnCredentialSchema = createInsertSchema(webauthnCredentials).omit({
+  createdAt: true,
+  lastUsedAt: true,
+});
+
+export type InsertWebAuthnCredential = z.infer<typeof insertWebAuthnCredentialSchema>;
+export type WebAuthnCredential = typeof webauthnCredentials.$inferSelect;
 
 export type SubscriptionTier = 'free' | 'plus' | 'premium' | 'family';
 

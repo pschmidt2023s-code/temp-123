@@ -5,7 +5,8 @@ import {
   type AdminUser, type InsertAdminUser,
   type Release, type InsertRelease,
   type ArtistRegistrationLink, type InsertArtistRegistrationLink,
-  type StreamingService, type InsertStreamingService
+  type StreamingService, type InsertStreamingService,
+  type WebAuthnCredential, type InsertWebAuthnCredential
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -18,6 +19,13 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
   updateUserAppleToken(userId: string, token: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+  
+  // WebAuthn Credentials
+  createWebAuthnCredential(credential: InsertWebAuthnCredential): Promise<WebAuthnCredential>;
+  getWebAuthnCredential(credentialId: string): Promise<WebAuthnCredential | undefined>;
+  getWebAuthnCredentialsByUser(userId: string): Promise<WebAuthnCredential[]>;
+  updateWebAuthnCredential(id: string, data: Partial<WebAuthnCredential>): Promise<WebAuthnCredential | undefined>;
+  deleteWebAuthnCredential(id: string): Promise<boolean>;
   
   getPlaylist(id: string): Promise<Playlist | undefined>;
   getPlaylistsByUser(userId: string): Promise<Playlist[]>;
@@ -62,6 +70,8 @@ export class MemStorage implements IStorage {
   private streamingServices: Map<string, StreamingService>;
   private adminSessions: Map<string, { username: string; expiresAt: Date }>;
 
+  private webauthnCredentials: Map<string, WebAuthnCredential>;
+
   constructor() {
     this.users = new Map();
     this.playlists = new Map();
@@ -71,6 +81,7 @@ export class MemStorage implements IStorage {
     this.artistLinks = new Map();
     this.streamingServices = new Map();
     this.adminSessions = new Map();
+    this.webauthnCredentials = new Map();
   }
 
   async createAdminSession(token: string, username: string): Promise<void> {
@@ -127,6 +138,7 @@ export class MemStorage implements IStorage {
       lastLoginAt: null,
       twoFactorSecret: null,
       twoFactorEnabled: false,
+      backupCodes: null,
     };
     this.users.set(id, user);
     return user;
@@ -354,6 +366,43 @@ export class MemStorage implements IStorage {
 
   async deleteStreamingService(id: string): Promise<boolean> {
     return this.streamingServices.delete(id);
+  }
+
+  // WebAuthn Credentials Methods
+  async createWebAuthnCredential(credential: InsertWebAuthnCredential): Promise<WebAuthnCredential> {
+    const id = credential.id || randomUUID();
+    const webauthnCred: WebAuthnCredential = {
+      ...credential,
+      id,
+      createdAt: new Date(),
+      lastUsedAt: null,
+    };
+    this.webauthnCredentials.set(id, webauthnCred);
+    return webauthnCred;
+  }
+
+  async getWebAuthnCredential(credentialId: string): Promise<WebAuthnCredential | undefined> {
+    return Array.from(this.webauthnCredentials.values()).find(
+      (cred) => cred.credentialId === credentialId
+    );
+  }
+
+  async getWebAuthnCredentialsByUser(userId: string): Promise<WebAuthnCredential[]> {
+    return Array.from(this.webauthnCredentials.values()).filter(
+      (cred) => cred.userId === userId
+    );
+  }
+
+  async updateWebAuthnCredential(id: string, data: Partial<WebAuthnCredential>): Promise<WebAuthnCredential | undefined> {
+    const credential = this.webauthnCredentials.get(id);
+    if (!credential) return undefined;
+    const updated = { ...credential, ...data };
+    this.webauthnCredentials.set(id, updated);
+    return updated;
+  }
+
+  async deleteWebAuthnCredential(id: string): Promise<boolean> {
+    return this.webauthnCredentials.delete(id);
   }
 }
 
