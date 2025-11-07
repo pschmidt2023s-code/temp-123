@@ -16,15 +16,11 @@ export function useSubscription(userId: string | undefined) {
   const subscribe = useMutation({
     mutationFn: async (tier: SubscriptionTier) => {
       if (!userId) throw new Error('User ID required');
-      return await apiRequest(`/api/subscriptions`, {
-        method: 'POST',
-        body: JSON.stringify({
-          userId,
-          tier,
-          status: 'active',
-          autoRenew: true,
-        }),
-        headers: { 'Content-Type': 'application/json' },
+      return await apiRequest('POST', '/api/subscriptions', {
+        userId,
+        tier,
+        status: 'active',
+        autoRenew: true,
       });
     },
     onSuccess: () => {
@@ -35,11 +31,7 @@ export function useSubscription(userId: string | undefined) {
   const upgrade = useMutation({
     mutationFn: async (tier: SubscriptionTier) => {
       if (!userId || !subscription.data?.id) throw new Error('Subscription not found');
-      return await apiRequest(`/api/subscriptions/${subscription.data.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ tier }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('PATCH', `/api/subscriptions/${subscription.data.id}`, { tier });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/user', userId] });
@@ -49,9 +41,7 @@ export function useSubscription(userId: string | undefined) {
   const cancel = useMutation({
     mutationFn: async () => {
       if (!subscription.data?.id) throw new Error('Subscription not found');
-      return await apiRequest(`/api/subscriptions/${subscription.data.id}/cancel`, {
-        method: 'POST',
-      });
+      return await apiRequest('POST', `/api/subscriptions/${subscription.data.id}/cancel`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/user', userId] });

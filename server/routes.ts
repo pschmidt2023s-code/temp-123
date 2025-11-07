@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPlaylistSchema, insertSubscriptionSchema, SUBSCRIPTION_TIERS } from "@shared/schema";
+import { setupWebSocket } from "./rooms";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -179,6 +180,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Setup WebSocket server for Live Music Rooms
+  setupWebSocket(httpServer);
 
   return httpServer;
 }

@@ -14,6 +14,8 @@ import Playlist from "@/pages/Playlist";
 import Artist from "@/pages/Artist";
 import Liked from "@/pages/Liked";
 import Library from "@/pages/Library";
+import Pricing from "@/pages/Pricing";
+import LiveRooms from "@/pages/LiveRooms";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/artist/:id" component={Artist} />
       <Route path="/liked" component={Liked} />
       <Route path="/library" component={Library} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/live-rooms" component={LiveRooms} />
       <Route component={NotFound} />
     </Switch>
   );
