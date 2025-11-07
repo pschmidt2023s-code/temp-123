@@ -360,10 +360,10 @@ function PlayerComponent() {
               <Button
                 size="icon"
                 onClick={handlePlayPause}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 w-12 h-12 rounded-full shrink-0"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 rounded-full shrink-0"
                 data-testid="button-play-pause"
               >
-                {isPlaying ? <Pause size={28} weight="fill" /> : <Play size={28} weight="fill" />}
+                {isPlaying ? <Pause size={22} weight="fill" /> : <Play size={22} weight="fill" />}
               </Button>
             </div>
             
@@ -405,10 +405,10 @@ function PlayerComponent() {
             <Button
               size="icon"
               onClick={handlePlayPause}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-8 h-8 rounded-full play-button-scale"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-7 h-7 rounded-full play-button-scale"
               data-testid="button-play-pause-desktop"
             >
-              {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+              {isPlaying ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
             </Button>
 
             <Button

@@ -387,13 +387,13 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
           <Button
             size="icon"
             onClick={handlePlayPause}
-            className="w-16 h-16 rounded-full bg-white text-background hover:scale-105 active:scale-95 transition-transform shadow-2xl"
+            className="w-14 h-14 rounded-full bg-white text-background hover:scale-105 active:scale-95 transition-transform shadow-2xl"
             data-testid="button-play-pause-fullscreen"
           >
             {isPlaying ? (
-              <Pause size={32} weight="fill" />
+              <Pause size={28} weight="fill" />
             ) : (
-              <Play size={32} weight="fill" className="ml-1" />
+              <Play size={28} weight="fill" className="ml-1" />
             )}
           </Button>
 
