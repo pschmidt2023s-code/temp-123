@@ -149,7 +149,8 @@ export default function Login() {
 
   const handle2FASubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (twoFactorCode.length === 6) {
+    // Accept both TOTP codes (6 digits) and backup codes (8 alphanumeric)
+    if (twoFactorCode.length >= 6 && twoFactorCode.length <= 8) {
       verify2FAMutation.mutate(twoFactorCode);
     }
   };
@@ -253,27 +254,28 @@ export default function Login() {
           {loginStep === 'twoFactor' && (
             <form onSubmit={handle2FASubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="twoFactorCode">2FA-Code</Label>
+                <Label htmlFor="twoFactorCode">2FA-Code oder Backup-Code</Label>
                 <Input
                   id="twoFactorCode"
                   type="text"
-                  placeholder="000000"
+                  placeholder="000000 oder ABCD1234"
                   value={twoFactorCode}
-                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
+                  onChange={(e) => setTwoFactorCode(e.target.value.toUpperCase())}
+                  maxLength={8}
                   className="text-center text-2xl tracking-widest font-mono"
                   autoFocus
                   data-testid="input-2fa-code"
                 />
                 <p className="text-xs text-muted-foreground text-center">
-                  Öffne deine Authenticator-App (z.B. Google Authenticator)
+                  Gib deinen 6-stelligen Code aus der Authenticator-App ein<br />
+                  oder verwende einen deiner 8-stelligen Backup-Codes
                 </p>
               </div>
 
               <Button
                 type="submit"
                 className="w-full"
-                disabled={verify2FAMutation.isPending || twoFactorCode.length !== 6}
+                disabled={verify2FAMutation.isPending || twoFactorCode.length < 6}
                 data-testid="button-verify-2fa"
               >
                 <Shield size={20} weight="bold" className="mr-2" />

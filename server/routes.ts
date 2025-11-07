@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 2FA verify code
+  // 2FA verify code (TOTP or backup code)
   app.post('/api/auth/verify-2fa', async (req, res) => {
     try {
       const { userId, token } = req.body;
@@ -463,12 +463,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid request' });
       }
 
-      const isValid = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: 'base32',
-        token,
-        window: 2,
-      });
+      let isValid = false;
+
+      // Check if it's a TOTP code (6 digits)
+      if (/^\d{6}$/.test(token)) {
+        isValid = speakeasy.totp.verify({
+          secret: user.twoFactorSecret,
+          encoding: 'base32',
+          token,
+          window: 2,
+        });
+      }
+      // Check if it's a backup code (8 alphanumeric)
+      else if (user.backupCodes && user.backupCodes.length > 0) {
+        const normalizedToken = token.toUpperCase().replace(/\s/g, '');
+        const codeIndex = user.backupCodes.indexOf(normalizedToken);
+        
+        if (codeIndex !== -1) {
+          isValid = true;
+          // Remove used backup code
+          const updatedCodes = [...user.backupCodes];
+          updatedCodes.splice(codeIndex, 1);
+          await storage.updateUser(user.id, { backupCodes: updatedCodes });
+        }
+      }
 
       if (!isValid) {
         return res.status(401).json({ error: 'Invalid code' });
