@@ -314,28 +314,10 @@ function PlayerComponent() {
 
         {/* Center: Playback Controls */}
         <div className="flex-1 flex flex-col items-center gap-1 md:gap-2 max-w-full md:max-w-[40%] w-full">
-          {/* Mobile: Timeline oben, Cover + Info darunter, Controls ganz unten */}
-          <div className="md:hidden w-full px-2 flex flex-col gap-1">
-            {/* Timeline GANZ OBEN - volle Breite */}
-            <div className="w-full flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground shrink-0" data-testid="text-current-time-mobile">
-                {formatTime(currentTime)}
-              </span>
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={1}
-                onValueChange={([value]) => handleSeek(value)}
-                className="flex-1"
-                data-testid="slider-progress"
-              />
-              <span className="text-[10px] text-muted-foreground shrink-0" data-testid="text-duration-mobile">
-                {formatTime(duration)}
-              </span>
-            </div>
-            
-            {/* Cover links + Track-Info rechts */}
-            <div className="w-full flex items-center gap-2">
+          {/* Mobile: Spotify-Style minimalistisch */}
+          <div className="md:hidden w-full flex flex-col gap-2">
+            {/* Obere Zeile: Cover + Info + Play */}
+            <div className="flex items-center gap-3 px-3">
               {artwork && (
                 <button
                   onClick={() => setShowFullscreen(true)}
@@ -350,18 +332,38 @@ function PlayerComponent() {
                 </button>
               )}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate">
+                <div className="text-base font-semibold text-foreground truncate">
                   {currentTrack.attributes.name}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-sm text-muted-foreground truncate">
                   {currentTrack.attributes.artistName}
                 </div>
               </div>
+              <Button
+                size="icon"
+                onClick={handlePlayPause}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-12 h-12 rounded-full shrink-0"
+                data-testid="button-play-pause"
+              >
+                {isPlaying ? <Pause size={28} weight="fill" /> : <Play size={28} weight="fill" />}
+              </Button>
+            </div>
+            
+            {/* Timeline UNTEN - volle Breite */}
+            <div className="w-full px-3">
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={([value]) => handleSeek(value)}
+                className="w-full"
+                data-testid="slider-progress"
+              />
             </div>
           </div>
           
-          {/* Controls */}
-          <div className="flex items-center gap-2 md:gap-4">
+          {/* Desktop: Vollständige Controls */}
+          <div className="hidden md:flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
@@ -385,10 +387,10 @@ function PlayerComponent() {
             <Button
               size="icon"
               onClick={handlePlayPause}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 md:w-8 md:h-8 rounded-full play-button-scale"
-              data-testid="button-play-pause"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-8 h-8 rounded-full play-button-scale"
+              data-testid="button-play-pause-desktop"
             >
-              {isPlaying ? <Pause size={24} weight="fill" /> : <Play size={24} weight="fill" />}
+              {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
             </Button>
 
             <Button
