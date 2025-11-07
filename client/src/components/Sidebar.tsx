@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart, Users } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, AlarmClock, ChartBar, Gift } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -25,6 +25,13 @@ export function Sidebar() {
   const libraryItems = [
     { icon: Heart, label: 'Deine Lieblingssongs', path: '/liked' },
     { icon: Users, label: familyLabel, path: familyPath, onClick: handleFamilyClick, showBadge: hasPaidSubscription },
+  ];
+
+  const settingsItems = [
+    { icon: Equalizer, label: 'Audio-Einstellungen', path: '/audio-settings' },
+    { icon: AlarmClock, label: 'Wecker & Timer', path: '/alarms' },
+    { icon: ChartBar, label: 'Meine Statistiken', path: '/stats' },
+    { icon: Gift, label: 'Geschenke & Codes', path: '/rewards' },
   ];
 
   return (
@@ -82,7 +89,7 @@ export function Sidebar() {
                   className={`w-full justify-start gap-4 h-12 px-4 ${
                     isActive ? 'bg-sidebar-accent text-foreground' : 'text-muted-foreground'
                   }`}
-                  data-testid={`link-${item.label.toLowerCase().replace(' ', '-')}`}
+                  data-testid={`link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <Icon size={24} weight="bold" className={isActive ? 'text-primary' : ''} />
                   <span className="text-body font-medium">{item.label}</span>
@@ -91,6 +98,33 @@ export function Sidebar() {
                       Familie
                     </span>
                   )}
+                </Button>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-sidebar-border my-4" />
+        
+        <div className="mb-2 px-4">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Einstellungen</h2>
+        </div>
+
+        <div className="space-y-1">
+          {settingsItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.path;
+            return (
+              <Link key={item.path} href={item.path}>
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start gap-4 h-12 px-4 ${
+                    isActive ? 'bg-sidebar-accent text-foreground' : 'text-muted-foreground'
+                  }`}
+                  data-testid={`link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <Icon size={24} weight="bold" className={isActive ? 'text-primary' : ''} />
+                  <span className="text-body font-medium">{item.label}</span>
                 </Button>
               </Link>
             );

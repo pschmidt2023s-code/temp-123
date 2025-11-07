@@ -117,6 +117,37 @@ export interface IStorage {
   validateCoupon(code: string, tier: string, userId: string): Promise<{ valid: boolean; coupon?: Coupon; error?: string }>;
   useCoupon(couponId: string, userId: string, subscriptionId: string): Promise<CouponUsage>;
   getCouponUsages(couponId: string): Promise<CouponUsage[]>;
+  
+  // ========== PHASE 1 NEW METHODS ==========
+  
+  // Audio Settings
+  getAudioSettings(userId: string): Promise<any>;
+  createOrUpdateAudioSettings(settings: any): Promise<any>;
+  
+  // Alarms
+  getAlarms(userId: string): Promise<any[]>;
+  createAlarm(alarm: any): Promise<any>;
+  updateAlarm(id: string, data: any): Promise<any>;
+  deleteAlarm(id: string): Promise<boolean>;
+  
+  // Sleep Timer
+  getActiveSleepTimer(userId: string): Promise<any | null>;
+  createSleepTimer(timer: any): Promise<any>;
+  deleteSleepTimer(id: string): Promise<boolean>;
+  
+  // Gift Cards
+  redeemGiftCard(code: string, userId: string): Promise<any>;
+  createGiftCard(giftCard: any): Promise<any>;
+  getAllGiftCards(): Promise<any[]>;
+  
+  // Referrals
+  getReferralsByUser(userId: string): Promise<any[]>;
+  createReferral(referral: any): Promise<any>;
+  applyReferralCode(code: string, userId: string): Promise<any>;
+  
+  // User Stats (Enhanced)
+  getTotalListeningTime(userId: string): Promise<number>;
+  trackSongPlay(userId: string, songId: string, songTitle: string, artistName: string, durationMinutes: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -507,7 +538,12 @@ import {
   lyrics,
   streamingEvents,
   coupons,
-  couponUsages
+  couponUsages,
+  audioSettings,
+  alarms,
+  sleepTimers,
+  giftCards,
+  referrals
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -984,6 +1020,247 @@ class DbStorage implements IStorage {
 
   async getCouponUsages(couponId: string): Promise<CouponUsage[]> {
     return db.select().from(couponUsages).where(eq(couponUsages.couponId, couponId));
+  }
+
+  // ========== PHASE 1 IMPLEMENTATIONS ==========
+
+  // Audio Settings
+  async getAudioSettings(userId: string): Promise<any> {
+    const result = await db.select().from(audioSettings).where(eq(audioSettings.userId, userId)).limit(1);
+    return result[0] || null;
+  }
+
+  async createOrUpdateAudioSettings(settings: any): Promise<any> {
+    const existing = await this.getAudioSettings(settings.userId);
+    if (existing) {
+      const result = await db.update(audioSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(audioSettings.userId, settings.userId))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(audioSettings).values(settings).returning();
+      return result[0];
+    }
+  }
+
+  // Alarms
+  async getAlarms(userId: string): Promise<any[]> {
+    return db.select().from(alarms).where(eq(alarms.userId, userId));
+  }
+
+  async createAlarm(alarm: any): Promise<any> {
+    const result = await db.insert(alarms).values(alarm).returning();
+    return result[0];
+  }
+
+  async updateAlarm(id: string, data: any): Promise<any> {
+    const result = await db.update(alarms).set(data).where(eq(alarms.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteAlarm(id: string): Promise<boolean> {
+    const result = await db.delete(alarms).where(eq(alarms.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Sleep Timer
+  async getActiveSleepTimer(userId: string): Promise<any | null> {
+    const now = new Date();
+    const result = await db.select().from(sleepTimers)
+      .where(and(
+        eq(sleepTimers.userId, userId),
+        sql`${sleepTimers.expiresAt} > ${now}`
+      ))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async createSleepTimer(timer: any): Promise<any> {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + timer.durationMinutes);
+    
+    const result = await db.insert(sleepTimers).values({
+      ...timer,
+      expiresAt
+    }).returning();
+    return result[0];
+  }
+
+  async deleteSleepTimer(id: string): Promise<boolean> {
+    const result = await db.delete(sleepTimers).where(eq(sleepTimers.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Gift Cards
+  async redeemGiftCard(code: string, userId: string): Promise<any> {
+    const giftCard = await db.select().from(giftCards).where(eq(giftCards.code, code)).limit(1);
+    
+    if (!giftCard[0]) {
+      throw new Error('Gutschein-Code nicht gefunden');
+    }
+    
+    if (giftCard[0].isRedeemed) {
+      throw new Error('Gutschein wurde bereits eingelöst');
+    }
+    
+    if (giftCard[0].expiresAt && new Date(giftCard[0].expiresAt) < new Date()) {
+      throw new Error('Gutschein ist abgelaufen');
+    }
+
+    await db.update(giftCards).set({
+      isRedeemed: true,
+      redeemedBy: userId,
+      redeemedAt: new Date()
+    }).where(eq(giftCards.id, giftCard[0].id));
+
+    const subscription = await this.getUserSubscription(userId);
+    const newEndDate = new Date();
+    if (subscription && subscription.endDate) {
+      newEndDate.setTime(new Date(subscription.endDate).getTime());
+    }
+    newEndDate.setMonth(newEndDate.getMonth() + giftCard[0].durationMonths);
+
+    if (subscription) {
+      await this.updateSubscription(subscription.id, {
+        tier: giftCard[0].tier,
+        endDate: newEndDate,
+        status: 'active'
+      });
+    } else {
+      await this.createSubscription({
+        userId,
+        tier: giftCard[0].tier,
+        status: 'active',
+        endDate: newEndDate,
+        autoRenew: false
+      });
+    }
+
+    return {
+      success: true,
+      tier: giftCard[0].tier,
+      months: giftCard[0].durationMonths,
+      expiresAt: newEndDate
+    };
+  }
+
+  async createGiftCard(giftCard: any): Promise<any> {
+    const result = await db.insert(giftCards).values(giftCard).returning();
+    return result[0];
+  }
+
+  async getAllGiftCards(): Promise<any[]> {
+    return db.select().from(giftCards).orderBy(desc(giftCards.createdAt));
+  }
+
+  // Referrals
+  async getReferralsByUser(userId: string): Promise<any[]> {
+    return db.select().from(referrals).where(eq(referrals.referrerId, userId));
+  }
+
+  async createReferral(referral: any): Promise<any> {
+    const result = await db.insert(referrals).values(referral).returning();
+    return result[0];
+  }
+
+  async applyReferralCode(code: string, userId: string): Promise<any> {
+    const referral = await db.select().from(referrals)
+      .where(eq(referrals.referralCode, code))
+      .limit(1);
+    
+    if (!referral[0]) {
+      throw new Error('Empfehlungscode nicht gefunden');
+    }
+    
+    if (referral[0].status !== 'pending') {
+      throw new Error('Empfehlungscode wurde bereits verwendet');
+    }
+    
+    if (referral[0].referrerId === userId) {
+      throw new Error('Du kannst deinen eigenen Code nicht verwenden');
+    }
+
+    await db.update(referrals).set({
+      referredId: userId,
+      status: 'completed',
+      completedAt: new Date()
+    }).where(eq(referrals.id, referral[0].id));
+
+    const subscription = await this.getUserSubscription(userId);
+    const newEndDate = new Date();
+    if (subscription && subscription.endDate) {
+      newEndDate.setTime(new Date(subscription.endDate).getTime());
+    }
+    
+    if (referral[0].rewardType === 'free_month') {
+      newEndDate.setMonth(newEndDate.getMonth() + referral[0].rewardValue);
+    }
+
+    if (subscription) {
+      await this.updateSubscription(subscription.id, {
+        endDate: newEndDate
+      });
+    } else {
+      await this.createSubscription({
+        userId,
+        tier: 'premium',
+        status: 'active',
+        endDate: newEndDate,
+        autoRenew: false
+      });
+    }
+
+    const referrerSub = await this.getUserSubscription(referral[0].referrerId);
+    if (referrerSub) {
+      const referrerEndDate = new Date(referrerSub.endDate || new Date());
+      referrerEndDate.setMonth(referrerEndDate.getMonth() + 1);
+      await this.updateSubscription(referrerSub.id, {
+        endDate: referrerEndDate
+      });
+    }
+
+    return {
+      success: true,
+      reward: `${referral[0].rewardValue} Monat${referral[0].rewardValue > 1 ? 'e' : ''} gratis`,
+      expiresAt: newEndDate
+    };
+  }
+
+  // User Stats (Enhanced)
+  async getTotalListeningTime(userId: string): Promise<number> {
+    const result = await db.select({
+      total: sql<number>`COALESCE(SUM(${userStats.totalMinutes}), 0)`
+    }).from(userStats).where(eq(userStats.userId, userId));
+    
+    return Number(result[0]?.total || 0);
+  }
+
+  async trackSongPlay(userId: string, songId: string, songTitle: string, artistName: string, durationMinutes: number): Promise<void> {
+    const existing = await db.select().from(userStats).where(
+      and(
+        eq(userStats.userId, userId),
+        eq(userStats.songId, songId)
+      )
+    ).limit(1);
+
+    if (existing[0]) {
+      await db.update(userStats).set({
+        playCount: sql`${userStats.playCount} + 1`,
+        totalMinutes: sql`${userStats.totalMinutes} + ${durationMinutes}`,
+        lastPlayedAt: new Date()
+      }).where(eq(userStats.id, existing[0].id));
+    } else {
+      await db.insert(userStats).values({
+        userId,
+        songId,
+        songTitle,
+        artistName,
+        playCount: 1,
+        totalMinutes: durationMinutes,
+        lastPlayedAt: new Date()
+      });
+    }
   }
 }
 

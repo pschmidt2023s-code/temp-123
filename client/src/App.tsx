@@ -24,6 +24,10 @@ import Settings from "@/pages/Settings";
 import Dashboard from "@/pages/Dashboard";
 import ArtistRegister from "@/pages/ArtistRegister";
 import ArtistPortal from "@/pages/ArtistPortal";
+import AudioSettings from "@/pages/AudioSettings";
+import Alarms from "@/pages/Alarms";
+import Stats from "@/pages/Stats";
+import Rewards from "@/pages/Rewards";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -53,6 +57,10 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/library" component={Library} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/pricing" component={Pricing} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/live-rooms" component={LiveRooms} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/audio-settings" component={AudioSettings} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/alarms" component={Alarms} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/stats" component={Stats} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/rewards" component={Rewards} />}
       <Route component={NotFound} />
     </Switch>
   );

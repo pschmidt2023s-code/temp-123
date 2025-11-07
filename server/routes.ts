@@ -13,6 +13,14 @@ import {
   insertLyricsSchema,
   insertStreamingEventSchema,
   insertCouponSchema,
+  insertAudioSettingsSchema,
+  insertAlarmSchema,
+  insertSleepTimerSchema,
+  insertGiftCardSchema,
+  insertReferralSchema,
+  insertOfflineDownloadSchema,
+  insertGeneratedPlaylistSchema,
+  insertFriendActivitySchema,
   SUBSCRIPTION_TIERS 
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
@@ -1799,6 +1807,230 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('AI recommendations error:', error);
       res.status(500).json({ error: 'Failed to fetch recommendations' });
+    }
+  });
+
+  // ========== PHASE 1: AUDIO SETTINGS ==========
+  
+  app.get('/api/audio-settings/:userId', async (req, res) => {
+    try {
+      const settings = await storage.getAudioSettings(req.params.userId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch audio settings' });
+    }
+  });
+
+  app.post('/api/audio-settings', async (req, res) => {
+    try {
+      const data = insertAudioSettingsSchema.parse(req.body);
+      const settings = await storage.createOrUpdateAudioSettings(data);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to update audio settings' });
+    }
+  });
+
+  // ========== PHASE 1: ALARMS ==========
+  
+  app.get('/api/alarms/:userId', async (req, res) => {
+    try {
+      const alarms = await storage.getAlarms(req.params.userId);
+      res.json(alarms);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch alarms' });
+    }
+  });
+
+  app.post('/api/alarms', async (req, res) => {
+    try {
+      const data = insertAlarmSchema.parse(req.body);
+      const alarm = await storage.createAlarm(data);
+      res.json(alarm);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create alarm' });
+    }
+  });
+
+  app.patch('/api/alarms/:id', async (req, res) => {
+    try {
+      const alarm = await storage.updateAlarm(req.params.id, req.body);
+      res.json(alarm);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update alarm' });
+    }
+  });
+
+  app.delete('/api/alarms/:id', async (req, res) => {
+    try {
+      await storage.deleteAlarm(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete alarm' });
+    }
+  });
+
+  // ========== PHASE 1: SLEEP TIMER ==========
+  
+  app.get('/api/sleep-timer/:userId', async (req, res) => {
+    try {
+      const timer = await storage.getActiveSleepTimer(req.params.userId);
+      res.json(timer);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch sleep timer' });
+    }
+  });
+
+  app.post('/api/sleep-timer', async (req, res) => {
+    try {
+      const data = insertSleepTimerSchema.parse(req.body);
+      const timer = await storage.createSleepTimer(data);
+      res.json(timer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create sleep timer' });
+    }
+  });
+
+  app.delete('/api/sleep-timer/:id', async (req, res) => {
+    try {
+      await storage.deleteSleepTimer(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete sleep timer' });
+    }
+  });
+
+  // ========== PHASE 1: GIFT CARDS ==========
+  
+  app.post('/api/gift-cards/redeem', async (req, res) => {
+    try {
+      const { code, userId } = req.body;
+      if (!code || !userId) {
+        return res.status(400).json({ error: 'Code and userId are required' });
+      }
+      
+      const result = await storage.redeemGiftCard(code, userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to redeem gift card' });
+    }
+  });
+
+  app.post('/api/admin/gift-cards', requireAdminAuth, async (req, res) => {
+    try {
+      const data = insertGiftCardSchema.parse(req.body);
+      const giftCard = await storage.createGiftCard(data);
+      res.json(giftCard);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create gift card' });
+    }
+  });
+
+  app.get('/api/admin/gift-cards', requireAdminAuth, async (req, res) => {
+    try {
+      const giftCards = await storage.getAllGiftCards();
+      res.json(giftCards);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch gift cards' });
+    }
+  });
+
+  // ========== PHASE 1: REFERRALS ==========
+  
+  app.get('/api/referrals/:userId', async (req, res) => {
+    try {
+      const referrals = await storage.getReferralsByUser(req.params.userId);
+      res.json(referrals);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch referrals' });
+    }
+  });
+
+  app.post('/api/referrals/generate', async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+      
+      const referralCode = randomBytes(8).toString('hex').toUpperCase();
+      const referral = await storage.createReferral({
+        referrerId: userId,
+        referralCode,
+        status: 'pending',
+        rewardType: 'free_month',
+        rewardValue: 1,
+      });
+      
+      res.json(referral);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to generate referral code' });
+    }
+  });
+
+  app.post('/api/referrals/apply', async (req, res) => {
+    try {
+      const { code, userId } = req.body;
+      if (!code || !userId) {
+        return res.status(400).json({ error: 'Code and userId are required' });
+      }
+      
+      const result = await storage.applyReferralCode(code, userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to apply referral code' });
+    }
+  });
+
+  // ========== PHASE 1: USER STATS ==========
+  
+  app.get('/api/user-stats/:userId', async (req, res) => {
+    try {
+      const stats = await storage.getUserStats(req.params.userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch user stats' });
+    }
+  });
+
+  app.get('/api/user-stats/:userId/top-artists', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topArtists = await storage.getTopArtists(req.params.userId, limit);
+      res.json(topArtists);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch top artists' });
+    }
+  });
+
+  app.get('/api/user-stats/:userId/total', async (req, res) => {
+    try {
+      const total = await storage.getTotalListeningTime(req.params.userId);
+      res.json({ totalMinutes: total });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch total listening time' });
+    }
+  });
+
+  app.post('/api/user-stats/track-play', async (req, res) => {
+    try {
+      const { userId, songId, songTitle, artistName, durationMinutes } = req.body;
+      await storage.trackSongPlay(userId, songId, songTitle, artistName, durationMinutes || 3);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to track play' });
     }
   });
 
