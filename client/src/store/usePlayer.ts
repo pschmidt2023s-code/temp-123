@@ -27,7 +27,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   duration: 0,
 
   setQueue: (queue, startIndex = 0) => {
-    set({ queue, currentIndex: startIndex, isPlaying: true });
+    set({ queue, currentIndex: startIndex, currentTime: 0 });
   },
 
   play: () => {

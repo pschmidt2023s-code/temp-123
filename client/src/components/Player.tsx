@@ -53,15 +53,17 @@ function PlayerComponent() {
     if (!audioRef.current || !isDBRelease || !currentTrack?.attributes?.url) return;
     
     const audio = audioRef.current;
+    const wasPlaying = isPlaying;
+    
     audio.src = currentTrack.attributes.url;
     audio.load();
     
-    if (isPlaying) {
+    if (wasPlaying) {
       audio.play().catch(error => {
         console.warn('HTML5 Audio autoplay failed:', error);
       });
     }
-  }, [currentIndex, currentTrack, isDBRelease]);
+  }, [currentIndex, currentTrack, isDBRelease, isPlaying]);
 
   useEffect(() => {
     if (!audioRef.current || !isDBRelease) return;
