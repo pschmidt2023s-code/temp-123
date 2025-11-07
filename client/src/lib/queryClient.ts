@@ -12,7 +12,13 @@ export async function apiRequest<T = any>(
   url: string,
   data?: unknown | undefined,
 ): Promise<T> {
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  const isFormData = data instanceof FormData;
+  const headers: Record<string, string> = {};
+  
+  // Only set Content-Type for JSON data, not for FormData (browser sets it automatically with boundary)
+  if (data && !isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
   
   // Add admin token for protected routes
   if (url.startsWith('/api/admin')) {
@@ -25,7 +31,7 @@ export async function apiRequest<T = any>(
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
     credentials: "include",
   });
 
