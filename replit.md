@@ -95,11 +95,13 @@ server/
 - Vollständige Navigation (7 Seiten)
 - Player mit allen Controls (Play, Pause, Next, Previous, Shuffle, Repeat)
 - Progress Bar & Volume Control
-- Card-basiertes Layout mit Hover-Effekten (4px Lift, 20% Overlay)
+- Card-basiertes Layout mit Hover-Effekten (4px Lift, 20% Overlay, exakt 200×200px)
 - Track-Listen mit Spalten
 - Responsive Design
 - Deutsche UI (komplett)
-- **MusicKit Catalog Integration**: Search, Album, Playlist, Artist pages nutzen Live-Daten
+- **MusicKit Catalog Integration**: Alle Pages (Home, Search, Album, Playlist, Artist) nutzen Live-Daten
+- **Home Page Live-Daten**: Recently Played, Recommendations, New Releases aus MusicKit Catalog
+- **Radio Stations**: "Radio starten" Buttons auf Album/Artist Pages für MusicKit Stations
 - **Apple Music Authentifizierung**: Login/Logout UI im TopBar mit Status-Badge
 - **Timed Lyrics Overlay**: Vollbild-Lyrics mit Wort-für-Wort-Synchronisation
 - MusicKit Hooks vollständig implementiert (useMKAuth, useMKCatalog, useMKPlayback, useMKLyrics)
@@ -183,13 +185,25 @@ Alle Texte sind auf Deutsch:
 ✅ Spotify Green (#1DB954) für Akzente
 ✅ Alle Maße pixel-genau
 
+## Aktuelle Implementierung (November 2025)
+
+**MusicKit Integration abgeschlossen:**
+- ✅ Home Page: Recently Played (`/v1/me/recent/played`), Recommendations (`/v1/me/recommendations`), New Releases (`/v1/catalog/de/new-releases`)
+- ✅ Search Page: Debounced catalog search mit URL sync
+- ✅ Album/Playlist/Artist Pages: Live catalog data mit Tracks
+- ✅ Radio Stations: Create & play MusicKit stations
+- ✅ Timed Lyrics: Fullscreen overlay mit word-sync
+- ✅ Authentication: Login/Logout flow im TopBar
+- ✅ Alle 6 Resource Types: albums, playlists, artists, songs, music-videos, stations
+
+**Demo-Modus Fallback:**
+- App läuft ohne VITE_MK_DEV_TOKEN mit vordefinierten Tracks
+- Nahtloser Übergang zu Live-Daten sobald authentifiziert
+
 ## Zukünftige Features
 
-- Timed Lyrics Overlay
 - Cloud Library Upload
-- Radio Stationen
-- Service Worker für PWA
-- Offline-Cache
+- Offline-Cache mit Service Worker
 - Collaborative Playlists
 - Crossfade & Gapless Playback (über MusicKit)
 

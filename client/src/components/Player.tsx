@@ -50,6 +50,27 @@ export function Player() {
     }
   }, [currentIndex, queue, setDuration]);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isPlaying && duration > 0) {
+      interval = setInterval(() => {
+        const { currentTime, duration } = usePlayer.getState();
+        if (currentTime < duration) {
+          usePlayer.getState().setCurrentTime(currentTime + 1000);
+        } else {
+          usePlayer.getState().next();
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isPlaying, duration]);
+
   const currentTrack = queue[currentIndex];
 
   const formatTime = (ms: number) => {
@@ -60,22 +81,21 @@ export function Player() {
   };
 
   const handlePlayPause = async () => {
-    try {
-      if (isPlaying) {
+    if (isPlaying) {
+      pause();
+      try {
         await musicKit.pause();
-        pause();
-      } else {
+      } catch (error) {
+        console.warn('MusicKit pause failed, using demo mode:', error);
+      }
+    } else {
+      play();
+      try {
         if (currentTrack) {
           await musicKit.play(currentTrack);
         }
-        play();
-      }
-    } catch (error) {
-      console.warn('MusicKit operation failed, using demo mode:', error);
-      if (isPlaying) {
-        pause();
-      } else {
-        play();
+      } catch (error) {
+        console.warn('MusicKit play failed, using demo mode:', error);
       }
     }
   };
@@ -129,7 +149,7 @@ export function Player() {
       
       <footer 
         className="glass fixed bottom-0 left-0 right-0 z-50 border-t border-border px-4"
-        style={{ height: '90px' }}
+        style={{ height: '90px', minHeight: '90px', maxHeight: '90px' }}
       >
         <div className="h-full flex items-center justify-between gap-4">
         {/* Left: Current Track Info */}
