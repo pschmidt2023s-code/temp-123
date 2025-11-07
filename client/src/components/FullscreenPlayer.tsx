@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { SyncedLyrics } from './SyncedLyrics';
 
 interface FullscreenPlayerProps {
   onClose: () => void;
@@ -373,17 +374,13 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.3 }}
-              className="absolute inset-x-0 bottom-32 top-64 mx-4 md:mx-8 bg-black/40 backdrop-blur-xl rounded-2xl p-6 overflow-y-auto"
+              className="absolute inset-x-0 bottom-32 top-20 md:top-24 mx-4 md:mx-8 bg-black/40 backdrop-blur-xl rounded-2xl overflow-hidden"
               data-testid="lyrics-panel"
             >
-              <div className="text-white/90 text-center space-y-4">
-                <p className="text-lg leading-relaxed">
-                  Lyrics werden geladen...
-                </p>
-                <p className="text-sm text-white/50">
-                  Synchronisierte Lyrics kommen bald!
-                </p>
-              </div>
+              <SyncedLyrics 
+                releaseId={currentTrack.id} 
+                className="h-full"
+              />
             </motion.div>
           )}
         </AnimatePresence>
