@@ -1,5 +1,3 @@
-import { Play } from '@phosphor-icons/react/dist/ssr';
-import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { usePlayer } from '@/store/usePlayer';
 import type { MKMediaItem } from '@shared/schema';
@@ -12,12 +10,14 @@ interface CardProps {
 
 export function Card({ item, onClick }: CardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { setQueue } = usePlayer();
+  const { setQueue, play } = usePlayer();
 
-  const handlePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCardClick = () => {
     setQueue([item], 0);
-    musicKit.play(item);
+    play();
+    if (onClick) {
+      onClick();
+    }
   };
 
   const artwork = item.attributes.artwork
@@ -29,7 +29,7 @@ export function Card({ item, onClick }: CardProps) {
       className="group relative p-3 md:p-4 rounded-lg glass card-hover-lift cursor-pointer w-[156px] md:w-[232px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={onClick}
+      onClick={handleCardClick}
       data-testid={`card-${item.type}-${item.id}`}
     >
       <div 
@@ -47,18 +47,6 @@ export function Card({ item, onClick }: CardProps) {
         {/* Hover Overlay */}
         {isHovered && (
           <div className="absolute inset-0 bg-black/20 transition-all duration-200" />
-        )}
-
-        {/* Play Button - Centered */}
-        {isHovered && (
-          <Button
-            size="icon"
-            onClick={handlePlay}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground shadow-lg play-button-scale"
-            data-testid={`button-play-${item.id}`}
-          >
-            <Play size={24} weight="fill" className="md:w-7 md:h-7" />
-          </Button>
         )}
       </div>
 
