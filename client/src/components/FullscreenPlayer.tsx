@@ -13,12 +13,23 @@ import {
   DotsThree,
   Queue as QueueIcon,
   Quotes,
+  ShareNetwork,
+  PlaylistPlus,
+  Radio,
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { SyncedLyrics } from './SyncedLyrics';
+import { useToast } from '@/hooks/use-toast';
 
 interface FullscreenPlayerProps {
   onClose: () => void;
@@ -42,6 +53,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
     seek,
   } = usePlayer();
 
+  const { toast } = useToast();
   const currentTrack = queue[currentIndex];
   const [dominantColor, setDominantColor] = useState<string>('142, 70%, 41%');
   const [isPulsing, setIsPulsing] = useState(false);
@@ -233,14 +245,64 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
               >
                 <Heart size={24} weight="bold" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/10"
-                data-testid="button-menu-fullscreen"
-              >
-                <DotsThree size={24} weight="bold" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/10"
+                    data-testid="button-menu-fullscreen"
+                  >
+                    <DotsThree size={24} weight="bold" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      toast({
+                        title: "Zur Playlist hinzugefügt",
+                        description: `"${currentTrack.attributes.name}" wurde zur Playlist hinzugefügt`,
+                      });
+                    }}
+                    data-testid="menu-add-to-playlist"
+                  >
+                    <PlaylistPlus size={18} weight="bold" className="mr-2" />
+                    Zur Playlist hinzufügen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      toast({
+                        title: "Radio gestartet",
+                        description: `Spiele ähnliche Songs wie "${currentTrack.attributes.name}"`,
+                      });
+                    }}
+                    data-testid="menu-start-radio"
+                  >
+                    <Radio size={18} weight="bold" className="mr-2" />
+                    Radio starten
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        await navigator.share({
+                          title: currentTrack.attributes.name,
+                          text: `Hör dir "${currentTrack.attributes.name}" von ${currentTrack.attributes.artistName} an!`,
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Link kopiert",
+                          description: "Song-Link wurde in die Zwischenablage kopiert",
+                        });
+                      }
+                    }}
+                    data-testid="menu-share"
+                  >
+                    <ShareNetwork size={18} weight="bold" className="mr-2" />
+                    Teilen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -284,54 +346,54 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-4">
+        <div className="mb-8 px-2">
           <Slider
             value={[currentTime]}
             max={duration}
             step={1000}
             onValueChange={handleSeek}
-            className="w-full"
+            className="w-full h-2"
           />
-          <div className="flex justify-between text-xs text-white/70 mt-2">
+          <div className="flex justify-between text-sm text-white/70 mt-3 px-1">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-center gap-6 mb-4">
+        <div className="flex items-center justify-between max-w-sm mx-auto mb-6 px-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleShuffle}
-            className={`text-white hover:bg-white/10 ${
+            className={`text-white hover:bg-white/10 w-12 h-12 ${
               shuffle ? 'text-primary' : 'text-white/70'
             }`}
             data-testid="button-shuffle-fullscreen"
           >
-            <Shuffle size={24} weight="bold" />
+            <Shuffle size={28} weight="bold" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={previous}
-            className="text-white hover:bg-white/10"
+            className="text-white hover:bg-white/10 w-14 h-14"
             data-testid="button-previous-fullscreen"
           >
-            <SkipBack size={32} weight="fill" />
+            <SkipBack size={36} weight="fill" />
           </Button>
 
           <Button
             size="icon"
             onClick={handlePlayPause}
-            className="w-16 h-16 rounded-full bg-white text-background hover:scale-105 transition-transform"
+            className="w-20 h-20 rounded-full bg-white text-background hover:scale-105 active:scale-95 transition-transform shadow-2xl"
             data-testid="button-play-pause-fullscreen"
           >
             {isPlaying ? (
-              <Pause size={32} weight="fill" />
+              <Pause size={40} weight="fill" />
             ) : (
-              <Play size={32} weight="fill" />
+              <Play size={40} weight="fill" className="ml-1" />
             )}
           </Button>
 
@@ -339,22 +401,25 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
             variant="ghost"
             size="icon"
             onClick={next}
-            className="text-white hover:bg-white/10"
+            className="text-white hover:bg-white/10 w-14 h-14"
             data-testid="button-next-fullscreen"
           >
-            <SkipForward size={32} weight="fill" />
+            <SkipForward size={36} weight="fill" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleRepeat}
-            className={`text-white hover:bg-white/10 ${
+            className={`text-white hover:bg-white/10 w-12 h-12 ${
               repeat !== 'off' ? 'text-primary' : 'text-white/70'
             }`}
             data-testid="button-repeat-fullscreen"
           >
-            <Repeat size={24} weight="bold" />
+            <Repeat size={28} weight="bold" />
+            {repeat === 'one' && (
+              <span className="absolute top-1 right-1 text-xs">1</span>
+            )}
           </Button>
         </div>
 

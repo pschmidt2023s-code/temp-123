@@ -6,7 +6,6 @@ import { musicKit } from '@/lib/musickit';
 import { useState, useEffect } from 'react';
 import type { MKMediaItem, Release } from '@shared/schema';
 import { useQuery } from '@tanstack/react-query';
-import { AIRecommendations } from '@/components/AIRecommendations';
 
 function convertReleaseToMKItem(release: Release): MKMediaItem {
   return {
@@ -204,11 +203,6 @@ export default function Home() {
             />
           ))}
         </div>
-      </section>
-
-      {/* AI Recommendations */}
-      <section className="mb-8">
-        <AIRecommendations userId={localStorage.getItem('userId') || 'demo-user'} />
       </section>
 
       {/* New Releases */}
