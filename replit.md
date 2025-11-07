@@ -59,10 +59,11 @@ client/
 ├── src/
 │   ├── components/
 │   │   ├── ui/              # Shadcn UI Komponenten
-│   │   ├── Sidebar.tsx      # 241px fixed Navigation
+│   │   ├── Sidebar.tsx      # 241px fixed Desktop Navigation
+│   │   ├── MobileNav.tsx    # Bottom Navigation für Mobile
 │   │   ├── TopBar.tsx       # 64px Search & User Menu
 │   │   ├── Player.tsx       # 90px Bottom Player
-│   │   ├── Card.tsx         # 200x200px Album/Playlist Cards
+│   │   ├── Card.tsx         # 200x200px (Desktop) / 132x132px (Mobile) Cards
 │   │   └── TrackRow.tsx     # Track List Row
 │   ├── pages/
 │   │   ├── Home.tsx         # Für dich / Featured
@@ -71,42 +72,78 @@ client/
 │   │   ├── Playlist.tsx     # Playlist-Detailansicht
 │   │   ├── Artist.tsx       # Künstler-Profil
 │   │   ├── Liked.tsx        # Lieblingssongs
-│   │   └── Library.tsx      # Bibliothek
+│   │   ├── Library.tsx      # Bibliothek
+│   │   ├── Pricing.tsx      # Subscription-Pläne (3 Tiers)
+│   │   └── LiveRooms.tsx    # Live Music Rooms (WebSocket)
+│   ├── hooks/
+│   │   ├── useSubscription.ts  # Subscription Management
+│   │   └── useLiveRoom.ts      # WebSocket Live Room Hook
 │   ├── store/
 │   │   └── usePlayer.ts     # Zustand Player State
 │   ├── lib/
-│   │   ├── musickit.ts      # MusicKit Service
-│   │   └── demo-data.ts     # Demo Tracks/Albums
+│   │   ├── musickit.ts           # MusicKit Service
+│   │   ├── demo-data.ts          # Demo Tracks/Albums
+│   │   └── subscription-features.ts  # Feature Access Control
 │   └── App.tsx              # Main Layout & Routing
 │
 shared/
-└── schema.ts                # TypeScript Types & Schemas
+└── schema.ts                # TypeScript Types & Schemas (inkl. Subscriptions)
 
 server/
-├── routes.ts                # API Endpoints
-└── storage.ts               # Data Storage Interface
+├── routes.ts                # API Endpoints (User, Playlists, Subscriptions)
+├── storage.ts               # Data Storage Interface
+└── rooms.ts                 # WebSocket Server für Live Rooms
 ```
 
 ## Features
 
 ### Implementiert ✅
+
+#### Core UI & Design
 - Pixel-perfekte Spotify UI mit exakten inline-style Maßen (241px, 64px, 90px)
 - Glassmorphism-Effekte auf allen Elementen
-- Vollständige Navigation (7 Seiten)
+- Vollständige Navigation (8 Seiten inkl. Pricing & Live Rooms)
+- Deutsche UI (komplett)
+- **Responsive Mobile Design**: Bottom Navigation, optimierte Card-Größen (132×132px), Touch-optimierte Controls
+
+#### Player & Playback
 - Player mit allen Controls (Play, Pause, Next, Previous, Shuffle, Repeat)
 - Progress Bar & Volume Control
-- Card-basiertes Layout mit Hover-Effekten (4px Lift, 20% Overlay, exakt 200×200px)
-- Track-Listen mit Spalten
-- Responsive Design
-- Deutsche UI (komplett)
+- Queue Management
+- Shuffle & Repeat Modes
+- Current Time & Duration Display mit Timer-Synchronisation
+
+#### Apple Music Integration
 - **MusicKit Catalog Integration**: Alle Pages (Home, Search, Album, Playlist, Artist) nutzen Live-Daten
 - **Home Page Live-Daten**: Recently Played, Recommendations, New Releases aus MusicKit Catalog
 - **Radio Stations**: "Radio starten" Buttons auf Album/Artist Pages für MusicKit Stations
 - **Apple Music Authentifizierung**: Login/Logout UI im TopBar mit Status-Badge
 - **Timed Lyrics Overlay**: Vollbild-Lyrics mit Wort-für-Wort-Synchronisation
 - MusicKit Hooks vollständig implementiert (useMKAuth, useMKCatalog, useMKPlayback, useMKLyrics)
+
+#### Subscription System (NEU)
+- **3-Tier Subscription Model**:
+  - **Plus** (4,99€): Werbefrei, Offline-Downloads
+  - **Premium** (9,99€): Plus + Dolby Atmos, Lossless Audio, Unbegrenzte Skips
+  - **Family** (14,99€): Premium + Live Music Rooms, bis zu 6 Accounts
+- Backend API-Routen: GET/POST/PATCH für Subscriptions
+- Feature Access Control mit `getFeatureAccess()` Helper
+- Pricing Page mit interaktiven Tier-Cards
+- Upgrade/Downgrade Flows mit Toast-Notifications
+
+#### Live Music Rooms (EINZIGARTIGES FEATURE) ✨
+- **WebSocket-basierte Echtzeit-Synchronisation** (ws Package)
+- **Room Management**: Erstellen, Beitreten, Verlassen
+- **Synchronisiertes Playback**: Alle Teilnehmer hören gleichzeitig
+- **Live-Chat**: Nachrichten in Echtzeit während des Hörens
+- **Teilnehmer-Anzeige**: Wer ist aktuell im Room?
+- **Feature Gating**: Nur für Family-Abonnenten zugänglich
+- **Bis zu 6 Teilnehmer** pro Room (Family-Tier)
+
+#### Weitere Features
 - Backend Playlist-Management mit React Query
 - PWA Support (Manifest + Service Worker)
+- Card-basiertes Layout mit Hover-Effekten (4px Lift, 20% Overlay)
 
 ### Player Features
 - Queue Management
@@ -187,8 +224,8 @@ Alle Texte sind auf Deutsch:
 
 ## Aktuelle Implementierung (November 2025)
 
-**MusicKit Integration abgeschlossen:**
-- ✅ Home Page: Recently Played (`/v1/me/recent/played`), Recommendations (`/v1/me/recommendations`), New Releases (`/v1/catalog/de/new-releases`)
+### Phase 1: MusicKit Integration (✅ Abgeschlossen)
+- ✅ Home Page: Recently Played, Recommendations, New Releases
 - ✅ Search Page: Debounced catalog search mit URL sync
 - ✅ Album/Playlist/Artist Pages: Live catalog data mit Tracks
 - ✅ Radio Stations: Create & play MusicKit stations
@@ -196,16 +233,37 @@ Alle Texte sind auf Deutsch:
 - ✅ Authentication: Login/Logout flow im TopBar
 - ✅ Alle 6 Resource Types: albums, playlists, artists, songs, music-videos, stations
 
-**Demo-Modus Fallback:**
+### Phase 2: Responsive Mobile & Subscriptions (✅ NEU)
+- ✅ **Responsive Design**: Mobile Bottom Navigation, optimierte Card-Größen (132×132px), Touch-Controls
+- ✅ **Subscription Backend**: Schema erweitert, API-Routen implementiert (GET/POST/PATCH)
+- ✅ **Pricing Page**: 3 Tier-Cards (Plus/Premium/Family) mit Feature-Liste
+- ✅ **Feature Access Control**: `getFeatureAccess()` Helper für Tier-basierte Features
+- ✅ **Live Music Rooms Backend**: WebSocket Server mit Room-Management
+- ✅ **Live Music Rooms Frontend**: Room-Erstellung, Chat, Teilnehmer-Liste, synchronisierte Controls
+- ✅ **Feature Gating**: Live Rooms nur für Family-Tier mit Upgrade-Prompt
+
+### Demo-Modus Fallback
 - App läuft ohne VITE_MK_DEV_TOKEN mit vordefinierten Tracks
 - Nahtloser Übergang zu Live-Daten sobald authentifiziert
+- Subscription-System funktioniert mit Demo-User
 
-## Zukünftige Features
+## Alleinstellungsmerkmale
+
+**Live Music Rooms** ist ein einzigartiges Feature, das bei keinem aktuellen Musik-Streaming-Dienst verfügbar ist:
+- **Spotify**: Kein synchronisiertes Hören mit Freunden
+- **Apple Music**: SharePlay nur für FaceTime, kein eigenständiges Feature
+- **YouTube Music**: Keine Live-Rooms oder Synchronisation
+- **Tidal**: Keine Social-Listening-Features
+- **GlassBeats**: ✨ **Live Music Rooms mit WebSocket-Echtzeit-Sync, Chat und gemeinsamer Queue!**
+
+## Zukünftige Features (Roadmap)
 
 - Cloud Library Upload
-- Offline-Cache mit Service Worker
-- Collaborative Playlists
+- Offline-Cache mit Service Worker (für Plus+)
+- Collaborative Playlists (für Premium+)
 - Crossfade & Gapless Playback (über MusicKit)
+- Screen Sharing in Live Rooms (Video-Integration)
+- Voice Chat in Live Rooms (WebRTC)
 
 ## Lizenz
 

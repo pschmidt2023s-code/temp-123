@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 
 export function Sidebar() {
@@ -13,6 +13,7 @@ export function Sidebar() {
 
   const libraryItems = [
     { icon: Heart, label: 'Deine Lieblingssongs', path: '/liked' },
+    { icon: Users, label: 'Live Music Rooms', path: '/live-rooms' },
   ];
 
   return (

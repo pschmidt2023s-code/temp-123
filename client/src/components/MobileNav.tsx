@@ -1,4 +1,4 @@
-import { House, MagnifyingGlass, Books, Heart, User } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Heart, Users } from '@phosphor-icons/react/dist/ssr';
 import { Link, useLocation } from 'wouter';
 
 export function MobileNav() {
@@ -9,6 +9,7 @@ export function MobileNav() {
     { path: '/search', icon: MagnifyingGlass, label: 'Suchen' },
     { path: '/library', icon: Books, label: 'Bibliothek' },
     { path: '/liked', icon: Heart, label: 'Favoriten' },
+    { path: '/live-rooms', icon: Users, label: 'Rooms' },
   ];
 
   return (

@@ -1,16 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Play, Pause, PaperPlaneTilt, MusicNotes } from '@phosphor-icons/react/dist/ssr';
+import { Users, Play, Pause, PaperPlaneTilt, MusicNotes, LockKey } from '@phosphor-icons/react/dist/ssr';
 import { useLiveRoom } from '@/hooks/useLiveRoom';
 import { usePlayer } from '@/store/usePlayer';
-import { useEffect } from 'react';
 import { musicKit } from '@/lib/musickit';
+import { useSubscription } from '@/hooks/useSubscription';
+import { getFeatureAccess } from '@/lib/subscription-features';
+
+const DEMO_USER_ID = 'demo-user';
 
 export default function LiveRooms() {
+  const { subscription } = useSubscription(DEMO_USER_ID);
+  const features = getFeatureAccess(subscription?.tier || null);
+  const hasAccess = features.liveRooms;
   const [roomId, setRoomId] = useState<string | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [chatInput, setChatInput] = useState('');
@@ -61,6 +68,66 @@ export default function LiveRooms() {
       playTrack(roomState.currentTrack, currentTime);
     }
   };
+
+  // Feature Gate: Only Family tier has access
+  if (!hasAccess) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="p-12 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <LockKey size={48} weight="bold" className="text-primary" />
+            </div>
+          </div>
+          
+          <h1 className="text-3xl font-bold text-foreground mb-4">
+            Live Music Rooms
+          </h1>
+          
+          <p className="text-lg text-muted-foreground mb-6">
+            Dieses Feature ist exklusiv für Family-Abonnenten verfügbar.
+            Höre Musik synchron mit bis zu 6 Freunden in Echtzeit!
+          </p>
+
+          <div className="mb-8 p-6 bg-secondary/50 rounded-lg">
+            <h3 className="font-semibold text-foreground mb-4">
+              Was du mit Live Music Rooms bekommst:
+            </h3>
+            <ul className="space-y-2 text-sm text-muted-foreground text-left max-w-md mx-auto">
+              <li className="flex items-start gap-2">
+                <MusicNotes size={16} weight="bold" className="text-primary mt-1 flex-shrink-0" />
+                <span>Synchronisiertes Playback - Alle hören gleichzeitig</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Users size={16} weight="bold" className="text-primary mt-1 flex-shrink-0" />
+                <span>Bis zu 6 Teilnehmer pro Room</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <PaperPlaneTilt size={16} weight="bold" className="text-primary mt-1 flex-shrink-0" />
+                <span>Live-Chat während des Hörens</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Play size={16} weight="bold" className="text-primary mt-1 flex-shrink-0" />
+                <span>Gemeinsame Queue-Verwaltung</span>
+              </li>
+            </ul>
+          </div>
+
+          <Link href="/pricing">
+            <Button size="lg" className="w-full md:w-auto" data-testid="button-upgrade-family">
+              Auf Family upgraden (14,99€/Monat)
+            </Button>
+          </Link>
+
+          <p className="text-xs text-muted-foreground mt-4">
+            Aktueller Plan: <strong>{subscription?.tier ? 
+              subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1) 
+              : 'Free'}</strong>
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   if (!roomId) {
     return (
