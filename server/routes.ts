@@ -12,12 +12,14 @@ import {
   insertArtistProfileSchema,
   insertLyricsSchema,
   insertStreamingEventSchema,
+  insertCouponSchema,
   SUBSCRIPTION_TIERS 
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
 import bcrypt from "bcrypt";
 import { randomBytes } from "crypto";
 import Stripe from "stripe";
+import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { 
@@ -1522,6 +1524,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allLyrics = await storage.getAllLyrics();
       res.json(allLyrics);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Coupon Management Routes (Admin)
+  app.get('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+    try {
+      const coupons = await storage.getAllCoupons();
+      res.json(coupons);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+    try {
+      const result = insertCouponSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid coupon data', details: result.error });
+      }
+      const coupon = await storage.createCoupon(result.data);
+      res.status(201).json(coupon);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/admin/coupons/:id', requireAdminAuth, async (req, res) => {
+    try {
+      const coupon = await storage.updateCoupon(req.params.id, req.body);
+      if (!coupon) {
+        return res.status(404).json({ error: 'Coupon not found' });
+      }
+      res.json(coupon);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/admin/coupons/:id', requireAdminAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCoupon(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Coupon not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/admin/coupons/:id/usages', requireAdminAuth, async (req, res) => {
+    try {
+      const usages = await storage.getCouponUsages(req.params.id);
+      res.json(usages);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Public coupon validation
+  app.post('/api/coupons/validate', async (req, res) => {
+    try {
+      const { code, tier, userId } = req.body;
+      
+      if (!code || !tier || !userId) {
+        return res.status(400).json({ error: 'Code, tier, and userId required' });
+      }
+
+      const result = await storage.validateCoupon(code, tier, userId);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
