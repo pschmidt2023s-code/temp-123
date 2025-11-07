@@ -26,18 +26,23 @@ export function Card({ item, onClick }: CardProps) {
 
   return (
     <div
-      className="group relative p-4 rounded-lg glass card-hover-lift cursor-pointer"
+      className="group relative p-4 rounded-lg glass card-hover-lift cursor-pointer w-[232px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
       data-testid={`card-${item.type}-${item.id}`}
+      style={{ width: '232px' }}
     >
-      <div className="relative aspect-square mb-4 rounded-md overflow-hidden bg-secondary">
+      <div 
+        className="relative mb-4 rounded-md overflow-hidden bg-secondary"
+        style={{ width: '200px', height: '200px' }}
+      >
         {artwork && (
           <img
             src={artwork}
             alt={item.attributes.name}
             className="w-full h-full object-cover"
+            style={{ width: '200px', height: '200px' }}
             loading="lazy"
           />
         )}
