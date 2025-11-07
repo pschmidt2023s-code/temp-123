@@ -6,7 +6,10 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
+  email: text("email"),
   appleToken: text("apple_token"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
 });
 
 export const playlists = pgTable("playlists", {
@@ -22,10 +25,12 @@ export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull().unique(),
   tier: text("tier").notNull(), // 'free', 'plus', 'premium', 'family'
-  status: text("status").notNull().default('active'), // 'active', 'cancelled', 'expired'
+  status: text("status").notNull().default('active'), // 'active', 'cancelled', 'expired', 'pending'
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
   autoRenew: boolean("auto_renew").default(true),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
 });
 
 export const adminUsers = pgTable("admin_users", {
