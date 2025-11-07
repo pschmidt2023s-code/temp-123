@@ -91,12 +91,13 @@ client/
 │   └── App.tsx              # Main Layout & Routing (Admin-Routes separiert)
 │
 shared/
-└── schema.ts                # TypeScript Types & Schemas (Subscriptions, Admin, Releases)
+└── schema.ts                # TypeScript Types & Schemas (Subscriptions, Admin, Releases, Coupons)
 
 server/
-├── routes.ts                # API Endpoints (User, Playlists, Subscriptions, Admin)
-├── storage.ts               # Data Storage Interface (inkl. Admin-Daten)
-└── rooms.ts                 # WebSocket Server für Live Rooms
+├── routes.ts                # API Endpoints (User, Playlists, Subscriptions, Admin, Coupons, Payments)
+├── storage.ts               # Data Storage Interface (inkl. Admin-Daten, Coupon-Management)
+├── rooms.ts                 # WebSocket Server für Live Rooms
+└── paypal.ts                # PayPal SDK Integration (optional)
 ```
 
 ## Features
@@ -143,8 +144,18 @@ server/
 - Upgrade/Downgrade Flows mit Toast-Notifications
 - **Navigation**: "Abos" Punkt ändert sich zu "Familie" nach Abo-Abschluss
 - **Feature Gating**: Upgrade-Prompts für Nicht-Family-Tier bei Live Rooms-Zugriff
+- **Gutschein-Integration** 💰:
+  - Gutscheincode-Eingabe auf Pricing Page
+  - Real-time Validierung vor Checkout
+  - Rabatt-Visualisierung (durchgestrichener Preis)
+  - Stripe-Coupon-Integration für automatische Rabatt-Anwendung
+  - Tier-spezifische Gutschein-Gültigkeit
+  - Automatisches Usage-Tracking bei erfolgreicher Zahlung
+- **Payment Options**:
+  - Stripe Checkout (Kreditkarte)
+  - PayPal Integration (optional, nur mit Secrets)
 
-#### Admin Dashboard (NEU) 🔐
+#### Admin Dashboard 🔐
 - **Sichere Authentifizierung**: bcrypt Password-Hashing, Session-Token-basiert
 - **Release-Management**: 
   - Releases anlegen, bearbeiten, löschen
@@ -159,6 +170,13 @@ server/
   - Services hinzufügen, bearbeiten, löschen
   - Status-Verwaltung (active, maintenance, disabled)
   - API-Endpoint-Konfiguration
+- **Gutschein-System** ✨:
+  - CRUD-Interface für Rabatt-Gutscheine
+  - Prozentuale oder Festpreis-Rabatte
+  - Tier-spezifische Gutscheine (Plus/Premium/Family)
+  - Verwendungslimits & Ablaufdatum
+  - Automatisches Usage-Tracking
+  - Real-time Validierung beim Checkout
 - **Admin-Credentials**: Gesichert als ADMIN_USERNAME & ADMIN_PASSWORD Secrets
 - **Zugriff**: `/admin/login` und `/admin` Routen, separates Layout ohne Player/Navigation
 
@@ -205,12 +223,15 @@ ADMIN_PASSWORD=<Sicheres Admin-Passwort>
 STRIPE_SECRET_KEY=<Stripe Secret Key>
 VITE_STRIPE_PUBLIC_KEY=<Stripe Public Key>
 SESSION_SECRET=<Session Secret für Express>
+PAYPAL_CLIENT_ID=<PayPal Client ID> (optional)
+PAYPAL_CLIENT_SECRET=<PayPal Client Secret> (optional)
 ```
 
 **Hinweise**: 
 - Ohne VITE_MK_DEV_TOKEN läuft die App im Demo-Modus
 - ADMIN_PASSWORD unterstützt sowohl bcrypt-Hashes als auch Klartext (für Dev)
 - Stripe-Keys erforderlich für Zahlungs-Integration
+- PayPal-Keys optional - App läuft auch ohne PayPal-Integration
 
 ## Apple MusicKit Setup
 
