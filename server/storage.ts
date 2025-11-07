@@ -12,7 +12,9 @@ import {
   type Achievement, type InsertAchievement,
   type ArtistProfile, type InsertArtistProfile,
   type Lyrics, type InsertLyrics,
-  type StreamingEvent, type InsertStreamingEvent
+  type StreamingEvent, type InsertStreamingEvent,
+  type Coupon, type InsertCoupon,
+  type CouponUsage, type InsertCouponUsage
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -104,6 +106,17 @@ export interface IStorage {
     topCities: Array<{ city: string; streams: number }>;
     platformBreakdown: Array<{ platform: string; streams: number }>;
   }>;
+  
+  // Coupons
+  getAllCoupons(): Promise<Coupon[]>;
+  getCoupon(id: string): Promise<Coupon | undefined>;
+  getCouponByCode(code: string): Promise<Coupon | undefined>;
+  createCoupon(coupon: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined>;
+  deleteCoupon(id: string): Promise<boolean>;
+  validateCoupon(code: string, tier: string, userId: string): Promise<{ valid: boolean; coupon?: Coupon; error?: string }>;
+  useCoupon(couponId: string, userId: string, subscriptionId: string): Promise<CouponUsage>;
+  getCouponUsages(couponId: string): Promise<CouponUsage[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -122,6 +135,8 @@ export class MemStorage implements IStorage {
   private artistProfiles: Map<string, ArtistProfile>;
   private lyrics: Map<string, Lyrics>;
   private streamingEvents: Map<string, StreamingEvent>;
+  private coupons: Map<string, Coupon>;
+  private couponUsages: Map<string, CouponUsage>;
 
   constructor() {
     this.users = new Map();
@@ -139,6 +154,8 @@ export class MemStorage implements IStorage {
     this.artistProfiles = new Map();
     this.lyrics = new Map();
     this.streamingEvents = new Map();
+    this.coupons = new Map();
+    this.couponUsages = new Map();
   }
 
   async createAdminSession(token: string, username: string): Promise<void> {
@@ -472,7 +489,7 @@ export class MemStorage implements IStorage {
 }
 
 import { db } from './db';
-import { eq, sql as drizzleSql, desc, and } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import {
   users,
   playlists,
@@ -488,7 +505,9 @@ import {
   achievements,
   artistProfiles,
   lyrics,
-  streamingEvents
+  streamingEvents,
+  coupons,
+  couponUsages
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -877,6 +896,94 @@ class DbStorage implements IStorage {
       topCities,
       platformBreakdown
     };
+  }
+
+  // Coupons
+  async getAllCoupons(): Promise<Coupon[]> {
+    return db.select().from(coupons).orderBy(desc(coupons.createdAt));
+  }
+
+  async getCoupon(id: string): Promise<Coupon | undefined> {
+    const result = await db.select().from(coupons).where(eq(coupons.id, id));
+    return result[0];
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    const result = await db.select().from(coupons).where(eq(coupons.code, code));
+    return result[0];
+  }
+
+  async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
+    const result = await db.insert(coupons).values(coupon).returning();
+    return result[0];
+  }
+
+  async updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined> {
+    const result = await db.update(coupons).set(data).where(eq(coupons.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteCoupon(id: string): Promise<boolean> {
+    const result = await db.delete(coupons).where(eq(coupons.id, id));
+    return result.rowCount > 0;
+  }
+
+  async validateCoupon(code: string, tier: string, userId: string): Promise<{ valid: boolean; coupon?: Coupon; error?: string }> {
+    const coupon = await this.getCouponByCode(code);
+    
+    if (!coupon) {
+      return { valid: false, error: 'Gutschein nicht gefunden' };
+    }
+
+    if (!coupon.isActive) {
+      return { valid: false, error: 'Gutschein ist nicht aktiv' };
+    }
+
+    const now = new Date();
+    if (coupon.validFrom && new Date(coupon.validFrom) > now) {
+      return { valid: false, error: 'Gutschein ist noch nicht gültig' };
+    }
+
+    if (coupon.validUntil && new Date(coupon.validUntil) < now) {
+      return { valid: false, error: 'Gutschein ist abgelaufen' };
+    }
+
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+      return { valid: false, error: 'Gutschein wurde bereits vollständig eingelöst' };
+    }
+
+    if (coupon.applicableTiers && coupon.applicableTiers.length > 0 && !coupon.applicableTiers.includes(tier)) {
+      return { valid: false, error: 'Gutschein ist für diesen Plan nicht gültig' };
+    }
+
+    const existingUsage = await db.select().from(couponUsages).where(
+      and(eq(couponUsages.couponId, coupon.id), eq(couponUsages.userId, userId))
+    );
+    if (existingUsage.length > 0) {
+      return { valid: false, error: 'Du hast diesen Gutschein bereits verwendet' };
+    }
+
+    return { valid: true, coupon };
+  }
+
+  async useCoupon(couponId: string, userId: string, subscriptionId: string): Promise<CouponUsage> {
+    const result = await db.transaction(async (tx) => {
+      await tx.update(coupons)
+        .set({ usedCount: sql`${coupons.usedCount} + 1` })
+        .where(eq(coupons.id, couponId));
+
+      const [usage] = await tx.insert(couponUsages)
+        .values({ couponId, userId, subscriptionId })
+        .returning();
+
+      return usage;
+    });
+
+    return result;
+  }
+
+  async getCouponUsages(couponId: string): Promise<CouponUsage[]> {
+    return db.select().from(couponUsages).where(eq(couponUsages.couponId, couponId));
   }
 }
 
