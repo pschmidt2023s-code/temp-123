@@ -59,7 +59,7 @@ client/
 ├── src/
 │   ├── components/
 │   │   ├── ui/              # Shadcn UI Komponenten
-│   │   ├── Sidebar.tsx      # 241px fixed Desktop Navigation
+│   │   ├── Sidebar.tsx      # 241px fixed Desktop Navigation (Abos/Familie dynamisch)
 │   │   ├── MobileNav.tsx    # Bottom Navigation für Mobile (bottom: 90px)
 │   │   ├── TopBar.tsx       # 64px Search & User Menu
 │   │   ├── Player.tsx       # 90px Bottom Player (React.memo optimiert)
@@ -75,24 +75,27 @@ client/
 │   │   ├── Liked.tsx        # Lieblingssongs
 │   │   ├── Library.tsx      # Bibliothek
 │   │   ├── Pricing.tsx      # Subscription-Pläne (3 Tiers)
-│   │   └── LiveRooms.tsx    # Live Music Rooms (WebSocket)
+│   │   ├── LiveRooms.tsx    # Live Music Rooms (WebSocket)
+│   │   ├── AdminLogin.tsx   # Admin-Login mit Lock Icon
+│   │   └── AdminDashboard.tsx  # Admin-Dashboard mit Tabs (Releases, Links, Services)
 │   ├── hooks/
 │   │   ├── useSubscription.ts  # Subscription Management
-│   │   └── useLiveRoom.ts      # WebSocket Live Room Hook
+│   │   ├── useLiveRoom.ts      # WebSocket Live Room Hook
+│   │   └── useAdminAuth.ts     # Admin Authentication Hook
 │   ├── store/
 │   │   └── usePlayer.ts     # Zustand Player State
 │   ├── lib/
 │   │   ├── musickit.ts           # MusicKit Service
 │   │   ├── demo-data.ts          # Demo Tracks/Albums
 │   │   └── subscription-features.ts  # Feature Access Control
-│   └── App.tsx              # Main Layout & Routing
+│   └── App.tsx              # Main Layout & Routing (Admin-Routes separiert)
 │
 shared/
-└── schema.ts                # TypeScript Types & Schemas (inkl. Subscriptions)
+└── schema.ts                # TypeScript Types & Schemas (Subscriptions, Admin, Releases)
 
 server/
-├── routes.ts                # API Endpoints (User, Playlists, Subscriptions)
-├── storage.ts               # Data Storage Interface
+├── routes.ts                # API Endpoints (User, Playlists, Subscriptions, Admin)
+├── storage.ts               # Data Storage Interface (inkl. Admin-Daten)
 └── rooms.ts                 # WebSocket Server für Live Rooms
 ```
 
@@ -129,7 +132,7 @@ server/
 - **Timed Lyrics Overlay**: Vollbild-Lyrics mit Wort-für-Wort-Synchronisation
 - MusicKit Hooks vollständig implementiert (useMKAuth, useMKCatalog, useMKPlayback, useMKLyrics)
 
-#### Subscription System (NEU)
+#### Subscription System
 - **3-Tier Subscription Model**:
   - **Plus** (4,99€): Werbefrei, Offline-Downloads
   - **Premium** (9,99€): Plus + Dolby Atmos, Lossless Audio, Unbegrenzte Skips
@@ -138,6 +141,26 @@ server/
 - Feature Access Control mit `getFeatureAccess()` Helper
 - Pricing Page mit interaktiven Tier-Cards
 - Upgrade/Downgrade Flows mit Toast-Notifications
+- **Navigation**: "Abos" Punkt ändert sich zu "Familie" nach Abo-Abschluss
+- **Feature Gating**: Upgrade-Prompts für Nicht-Family-Tier bei Live Rooms-Zugriff
+
+#### Admin Dashboard (NEU) 🔐
+- **Sichere Authentifizierung**: bcrypt Password-Hashing, Session-Token-basiert
+- **Release-Management**: 
+  - Releases anlegen, bearbeiten, löschen
+  - Status-Verwaltung (pending, approved, published, rejected)
+  - ISRC, UPC, Catalog ID Unterstützung
+- **Künstler-Registrierung**:
+  - Einmalige Registrierungslinks generieren
+  - 7 Tage Gültigkeit
+  - Link-Status-Tracking (aktiv, verwendet, abgelaufen)
+  - E-Mail & Künstlername optional speicherbar
+- **Streaming-Service-Management**:
+  - Services hinzufügen, bearbeiten, löschen
+  - Status-Verwaltung (active, maintenance, disabled)
+  - API-Endpoint-Konfiguration
+- **Admin-Credentials**: Gesichert als ADMIN_USERNAME & ADMIN_PASSWORD Secrets
+- **Zugriff**: `/admin/login` und `/admin` Routen, separates Layout ohne Player/Navigation
 
 #### Live Music Rooms (EINZIGARTIGES FEATURE) ✨
 - **WebSocket-basierte Echtzeit-Synchronisation** (ws Package)
@@ -177,9 +200,17 @@ server/
 
 ```
 VITE_MK_DEV_TOKEN=<Apple MusicKit Developer Token>
+ADMIN_USERNAME=<Kryptischer Admin-Benutzername>
+ADMIN_PASSWORD=<Sicheres Admin-Passwort>
+STRIPE_SECRET_KEY=<Stripe Secret Key>
+VITE_STRIPE_PUBLIC_KEY=<Stripe Public Key>
+SESSION_SECRET=<Session Secret für Express>
 ```
 
-**Hinweis**: Ohne Token läuft die App im Demo-Modus mit vordefinierten Tracks.
+**Hinweise**: 
+- Ohne VITE_MK_DEV_TOKEN läuft die App im Demo-Modus
+- ADMIN_PASSWORD unterstützt sowohl bcrypt-Hashes als auch Klartext (für Dev)
+- Stripe-Keys erforderlich für Zahlungs-Integration
 
 ## Apple MusicKit Setup
 

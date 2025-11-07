@@ -16,31 +16,53 @@ import Liked from "@/pages/Liked";
 import Library from "@/pages/Library";
 import Pricing from "@/pages/Pricing";
 import LiveRooms from "@/pages/LiveRooms";
+import AdminLogin from "@/pages/AdminLogin";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
+import { useLocation } from "wouter";
 
 function Router() {
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith('/admin');
+
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/search" component={Search} />
-      <Route path="/album/:id" component={Album} />
-      <Route path="/playlist/:id" component={Playlist} />
-      <Route path="/artist/:id" component={Artist} />
-      <Route path="/liked" component={Liked} />
-      <Route path="/library" component={Library} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/live-rooms" component={LiveRooms} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin" component={AdminDashboard} />
+      {!isAdminRoute && <Route path="/" component={Home} />}
+      {!isAdminRoute && <Route path="/search" component={Search} />}
+      {!isAdminRoute && <Route path="/album/:id" component={Album} />}
+      {!isAdminRoute && <Route path="/playlist/:id" component={Playlist} />}
+      {!isAdminRoute && <Route path="/artist/:id" component={Artist} />}
+      {!isAdminRoute && <Route path="/liked" component={Liked} />}
+      {!isAdminRoute && <Route path="/library" component={Library} />}
+      {!isAdminRoute && <Route path="/pricing" component={Pricing} />}
+      {!isAdminRoute && <Route path="/live-rooms" component={LiveRooms} />}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith('/admin');
+
   useEffect(() => {
     musicKit.configure();
   }, []);
+
+  if (isAdminRoute) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
