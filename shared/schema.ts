@@ -64,6 +64,22 @@ export const releases = pgTable("releases", {
   title: text("title").notNull(),
   artistName: text("artist_name").notNull(),
   releaseDate: timestamp("release_date").notNull(),
+  releaseType: text("release_type").notNull(), // 'single', 'ep', 'album'
+  genre: text("genre").notNull(),
+  
+  // Preorder settings
+  preorderEnabled: boolean("preorder_enabled").default(false),
+  preorderDate: timestamp("preorder_date"),
+  
+  // Preview settings
+  previewEnabled: boolean("preview_enabled").default(false),
+  previewDurationSeconds: integer("preview_duration_seconds"), // max 30
+  
+  // File storage paths
+  coverFilePath: text("cover_file_path"),
+  audioFilePath: text("audio_file_path"),
+  
+  // Legacy/external fields
   coverUrl: text("cover_url"),
   trackCount: integer("track_count").default(0),
   catalogId: text("catalog_id"), // Apple Music Catalog ID
@@ -113,10 +129,30 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   createdAt: true,
 });
 
+// Release Type and Genre enums
+export const releaseTypeEnum = z.enum(['single', 'ep', 'album']);
+export type ReleaseType = z.infer<typeof releaseTypeEnum>;
+
 export const insertReleaseSchema = createInsertSchema(releases).omit({
   id: true,
   createdAt: true,
-});
+}).extend({
+  releaseType: releaseTypeEnum,
+  previewDurationSeconds: z.number().int().min(0).max(30).optional().nullable(),
+}).refine(
+  (data) => {
+    if (data.preorderEnabled && !data.preorderDate) {
+      return false;
+    }
+    if (data.previewEnabled && !data.previewDurationSeconds) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Wenn Vorbestellung oder Preview aktiviert ist, muss das jeweilige Feld ausgefüllt werden",
+  }
+);
 
 export const insertArtistRegistrationLinkSchema = createInsertSchema(artistRegistrationLinks).omit({
   id: true,

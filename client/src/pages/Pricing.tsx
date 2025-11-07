@@ -25,13 +25,11 @@ export default function Pricing() {
       const isUpgrade = subscription && subscription.tier !== 'free' && subscription.tier !== tier;
 
       // Create Stripe Checkout Session (supports both new subscriptions and upgrades)
-      const response = await apiRequest('POST', '/api/create-checkout-session', {
+      const data = await apiRequest<{ success?: boolean; url?: string }>('POST', '/api/create-checkout-session', {
         tier,
         userId,
         isUpgrade,
       });
-
-      const data = await response.json();
 
       // If upgrade was successful (no redirect URL)
       if (data.success && !data.url) {

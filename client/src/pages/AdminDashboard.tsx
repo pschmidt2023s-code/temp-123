@@ -12,8 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus } from '@phosphor-icons/react';
+import { SignOut, MusicNotes, Link as LinkIcon, Cloud, Copy, Trash, Plus, UploadSimple } from '@phosphor-icons/react';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Release, ArtistRegistrationLink, StreamingService } from '@shared/schema';
+import { releaseTypeEnum } from '@shared/schema';
 import { format } from 'date-fns';
 
 export default function AdminDashboard() {
@@ -102,7 +104,7 @@ export default function AdminDashboard() {
 function UsersTab() {
   const { toast } = useToast();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/users'],
   });
 
@@ -200,6 +202,11 @@ function UsersTab() {
 function ReleasesTab() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [releaseType, setReleaseType] = useState<'single' | 'ep' | 'album'>('single');
+  const [preorderEnabled, setPreorderEnabled] = useState(false);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   
   const { data: releases = [], isLoading } = useQuery<Release[]>({
     queryKey: ['/api/admin/releases'],
@@ -207,8 +214,7 @@ function ReleasesTab() {
 
   const createRelease = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/admin/releases', data);
-      return await res.json();
+      return await apiRequest('POST', '/api/admin/releases', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/releases'] });
@@ -217,6 +223,19 @@ function ReleasesTab() {
         description: "Das Release wurde erfolgreich angelegt",
       });
       setIsDialogOpen(false);
+      // Reset form state
+      setReleaseType('single');
+      setPreorderEnabled(false);
+      setPreviewEnabled(false);
+      setCoverFile(null);
+      setAudioFile(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: error.message || "Release konnte nicht erstellt werden",
+        variant: "destructive",
+      });
     },
   });
 
@@ -246,20 +265,63 @@ function ReleasesTab() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    createRelease.mutate({
-      title: formData.get('title'),
-      artistName: formData.get('artistName'),
-      releaseDate: new Date(formData.get('releaseDate') as string),
-      coverUrl: formData.get('coverUrl') || null,
-      trackCount: parseInt(formData.get('trackCount') as string) || 0,
-      catalogId: formData.get('catalogId') || null,
-      isrc: formData.get('isrc') || null,
-      upc: formData.get('upc') || null,
-      status: 'pending',
-    });
+
+    try {
+      // Upload files first if provided
+      let coverFilePath = null;
+      let audioFilePath = null;
+
+      if (coverFile) {
+        const coverFormData = new FormData();
+        coverFormData.append('cover', coverFile);
+        const coverRes = await apiRequest<{ filePath: string }>('POST', '/api/admin/upload/cover', coverFormData);
+        coverFilePath = coverRes.filePath;
+      }
+
+      if (audioFile) {
+        const audioFormData = new FormData();
+        audioFormData.append('audio', audioFile);
+        const audioRes = await apiRequest<{ filePath: string }>('POST', '/api/admin/upload/audio', audioFormData);
+        audioFilePath = audioRes.filePath;
+      }
+
+      // Prepare release data
+      const releaseDateStr = formData.get('releaseDate') + 'T' + formData.get('releaseTime');
+      const releaseData: any = {
+        title: formData.get('title'),
+        artistName: formData.get('artistName'),
+        releaseDate: new Date(releaseDateStr),
+        releaseType: releaseType,
+        genre: formData.get('genre'),
+        preorderEnabled,
+        preorderDate: preorderEnabled && formData.get('preorderDate') 
+          ? new Date(formData.get('preorderDate') + 'T' + (formData.get('preorderTime') || '00:00'))
+          : null,
+        previewEnabled,
+        previewDurationSeconds: previewEnabled 
+          ? parseInt(formData.get('previewDuration') as string)
+          : null,
+        coverFilePath,
+        audioFilePath,
+        coverUrl: formData.get('coverUrl') || null,
+        trackCount: parseInt(formData.get('trackCount') as string) || 1,
+        catalogId: formData.get('catalogId') || null,
+        isrc: formData.get('isrc') || null,
+        upc: formData.get('upc') || null,
+        status: 'pending',
+      };
+
+      createRelease.mutate(releaseData);
+    } catch (error: any) {
+      toast({
+        title: "Upload-Fehler",
+        description: error.message || "Dateien konnten nicht hochgeladen werden",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -284,8 +346,9 @@ function ReleasesTab() {
                   Legen Sie ein neues Musik-Release an
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* Basic Info */}
                   <div className="space-y-2">
                     <Label htmlFor="title">Titel *</Label>
                     <Input id="title" name="title" required data-testid="input-release-title" />
@@ -294,17 +357,125 @@ function ReleasesTab() {
                     <Label htmlFor="artistName">Künstler *</Label>
                     <Input id="artistName" name="artistName" required data-testid="input-release-artist" />
                   </div>
+
+                  {/* Release Type & Genre */}
+                  <div className="space-y-2">
+                    <Label htmlFor="releaseType">Release-Typ *</Label>
+                    <Select value={releaseType} onValueChange={(value) => setReleaseType(value as 'single' | 'ep' | 'album')}>
+                      <SelectTrigger data-testid="select-release-type">
+                        <SelectValue placeholder="Wählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Single</SelectItem>
+                        <SelectItem value="ep">EP</SelectItem>
+                        <SelectItem value="album">Album</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="genre">Genre/Style *</Label>
+                    <Input id="genre" name="genre" required placeholder="z.B. Pop, Rock, Hip-Hop" data-testid="input-release-genre" />
+                  </div>
+
+                  {/* Release Date & Time */}
                   <div className="space-y-2">
                     <Label htmlFor="releaseDate">Release-Datum *</Label>
                     <Input id="releaseDate" name="releaseDate" type="date" required data-testid="input-release-date" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="trackCount">Anzahl Tracks</Label>
-                    <Input id="trackCount" name="trackCount" type="number" defaultValue="0" data-testid="input-release-tracks" />
+                    <Label htmlFor="releaseTime">Uhrzeit</Label>
+                    <Input id="releaseTime" name="releaseTime" type="time" defaultValue="00:00" data-testid="input-release-time" />
                   </div>
+
+                  {/* Preorder */}
                   <div className="space-y-2 col-span-2">
-                    <Label htmlFor="coverUrl">Cover URL</Label>
-                    <Input id="coverUrl" name="coverUrl" type="url" placeholder="https://..." data-testid="input-release-cover" />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="preorderEnabled" 
+                        checked={preorderEnabled}
+                        onCheckedChange={(checked) => setPreorderEnabled(checked as boolean)}
+                        data-testid="checkbox-preorder"
+                      />
+                      <Label htmlFor="preorderEnabled" className="cursor-pointer">Vorbestellung aktivieren</Label>
+                    </div>
+                  </div>
+
+                  {preorderEnabled && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="preorderDate">Vorbestell-Start *</Label>
+                        <Input id="preorderDate" name="preorderDate" type="date" required data-testid="input-preorder-date" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="preorderTime">Uhrzeit</Label>
+                        <Input id="preorderTime" name="preorderTime" type="time" defaultValue="00:00" data-testid="input-preorder-time" />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Preview */}
+                  <div className="space-y-2 col-span-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="previewEnabled" 
+                        checked={previewEnabled}
+                        onCheckedChange={(checked) => setPreviewEnabled(checked as boolean)}
+                        data-testid="checkbox-preview"
+                      />
+                      <Label htmlFor="previewEnabled" className="cursor-pointer">Preview aktivieren</Label>
+                    </div>
+                  </div>
+
+                  {previewEnabled && (
+                    <div className="space-y-2">
+                      <Label htmlFor="previewDuration">Preview-Länge (Sekunden) * (max 30)</Label>
+                      <Input 
+                        id="previewDuration" 
+                        name="previewDuration" 
+                        type="number" 
+                        min="1" 
+                        max="30" 
+                        required 
+                        placeholder="15"
+                        data-testid="input-preview-duration" 
+                      />
+                    </div>
+                  )}
+
+                  {/* File Uploads */}
+                  <div className="space-y-2">
+                    <Label htmlFor="coverUpload">Cover-Upload</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        id="coverUpload" 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
+                        data-testid="input-cover-upload"
+                      />
+                      {coverFile && <span className="text-sm text-muted-foreground">{coverFile.name}</span>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="audioUpload">Audio-Datei (Wave) *</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        id="audioUpload" 
+                        type="file" 
+                        accept=".wav,audio/wav"
+                        onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                        required
+                        data-testid="input-audio-upload"
+                      />
+                      {audioFile && <span className="text-sm text-muted-foreground">{audioFile.name}</span>}
+                    </div>
+                  </div>
+
+                  {/* Technical Details */}
+                  <div className="space-y-2">
+                    <Label htmlFor="trackCount">Anzahl Tracks</Label>
+                    <Input id="trackCount" name="trackCount" type="number" defaultValue="1" min="1" data-testid="input-release-tracks" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="catalogId">Catalog ID</Label>
@@ -314,11 +485,18 @@ function ReleasesTab() {
                     <Label htmlFor="isrc">ISRC</Label>
                     <Input id="isrc" name="isrc" placeholder="USRC12345678" data-testid="input-release-isrc" />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="upc">UPC</Label>
                     <Input id="upc" name="upc" placeholder="123456789012" data-testid="input-release-upc" />
                   </div>
+
+                  {/* Cover URL (optional fallback) */}
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="coverUrl">Cover URL (Fallback)</Label>
+                    <Input id="coverUrl" name="coverUrl" type="url" placeholder="https://..." data-testid="input-release-cover" />
+                  </div>
                 </div>
+
                 <Button type="submit" className="w-full" disabled={createRelease.isPending} data-testid="button-submit-release">
                   {createRelease.isPending ? 'Erstelle...' : 'Release anlegen'}
                 </Button>

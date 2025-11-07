@@ -25,6 +25,8 @@ import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from '@simplewebauthn/server/esm/deps';
+import multer from "multer";
+import path from "path";
 
 // Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -32,6 +34,53 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
+});
+
+// Configure multer for file uploads
+const coverStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/covers/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/audio/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadCover = multer({
+  storage: coverStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Nur Bilddateien (JPEG, PNG, WebP) sind erlaubt'));
+    }
+  }
+});
+
+const uploadAudio = multer({
+  storage: audioStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['audio/wav', 'audio/x-wav', 'audio/wave'];
+    if (allowedMimes.includes(file.mimetype) || file.originalname.endsWith('.wav')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Nur WAV-Audiodateien sind erlaubt'));
+    }
+  }
 });
 
 // Admin authentication middleware
@@ -965,6 +1014,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // File Upload Routes (Protected)
+  app.post('/api/admin/upload/cover', requireAdminAuth, uploadCover.single('cover'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+      }
+      const filePath = `/uploads/covers/${req.file.filename}`;
+      res.json({ success: true, filePath });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Upload fehlgeschlagen' });
+    }
+  });
+
+  app.post('/api/admin/upload/audio', requireAdminAuth, uploadAudio.single('audio'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+      }
+      const filePath = `/uploads/audio/${req.file.filename}`;
+      res.json({ success: true, filePath });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Upload fehlgeschlagen' });
     }
   });
 
