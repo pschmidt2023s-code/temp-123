@@ -41,32 +41,41 @@ res.cookie('admin_session', sessionToken, {
 - CSRF tokens generated for all requests via `generateCsrfToken` middleware
 - Token stored in non-HttpOnly cookie (readable by JavaScript)
 - Validation via `X-CSRF-Token` header on all state-changing requests
-- **54 protected endpoints** across the application (31 admin + 23 user-facing)
+- **53 protected endpoints** across the application (30 admin + 23 user-facing)
 
 **Complete List of Protected Endpoints:**
 
-**Admin Routes (31 endpoints using `requireAdminAuthWithCsrf`):**
-1. POST `/api/admin/logout`
-2. PATCH `/api/admin/users/:id/subscription`
-3. DELETE `/api/admin/users/:id`
-4. POST `/api/admin/upload/cover`
-5. POST `/api/admin/upload/audio`
-6. POST `/api/admin/releases`
-7. PATCH `/api/admin/releases/:id`
-8. DELETE `/api/admin/releases/:id`
-9. POST `/api/admin/artist-links`
-10. DELETE `/api/admin/artist-links/:id`
-11. POST `/api/admin/services`
-12. PATCH `/api/admin/services/:id`
-13. DELETE `/api/admin/services/:id`
-14. POST `/api/admin/lyrics`
-15. PATCH `/api/admin/lyrics/:id`
-16. DELETE `/api/admin/lyrics/:id`
-17. POST `/api/admin/coupons`
-18. PATCH `/api/admin/coupons/:id`
-19. DELETE `/api/admin/coupons/:id`
-20. POST `/api/admin/gift-cards`
-21-31. *(Plus 11 more admin GET endpoints)*
+**Admin Routes (30 endpoints using `requireAdminAuthWithCsrf`):**
+1. GET `/api/admin/check-session`
+2. POST `/api/admin/logout`
+3. GET `/api/admin/users`
+4. PATCH `/api/admin/users/:id/subscription`
+5. DELETE `/api/admin/users/:id`
+6. POST `/api/admin/upload/cover`
+7. POST `/api/admin/upload/audio`
+8. GET `/api/admin/releases`
+9. GET `/api/admin/releases/:id`
+10. POST `/api/admin/releases`
+11. PATCH `/api/admin/releases/:id`
+12. DELETE `/api/admin/releases/:id`
+13. GET `/api/admin/artist-links`
+14. POST `/api/admin/artist-links`
+15. DELETE `/api/admin/artist-links/:id`
+16. GET `/api/admin/services`
+17. POST `/api/admin/services`
+18. PATCH `/api/admin/services/:id`
+19. DELETE `/api/admin/services/:id`
+20. POST `/api/admin/lyrics`
+21. PATCH `/api/admin/lyrics/:id`
+22. DELETE `/api/admin/lyrics/:id`
+23. GET `/api/admin/lyrics/all`
+24. GET `/api/admin/coupons`
+25. POST `/api/admin/coupons`
+26. PATCH `/api/admin/coupons/:id`
+27. DELETE `/api/admin/coupons/:id`
+28. GET `/api/admin/coupons/:id/usages`
+29. POST `/api/admin/gift-cards`
+30. GET `/api/admin/gift-cards`
 
 **User-Facing Routes (23 endpoints using direct `validateCsrfToken`):**
 1. POST `/api/playlists`
@@ -93,7 +102,7 @@ res.cookie('admin_session', sessionToken, {
 22. POST `/api/quizzes`
 23. POST `/api/quizzes/:id/scores`
 
-Note: All admin routes use `requireAdminAuthWithCsrf` middleware which internally calls `validateCsrfToken`, while user-facing routes use `validateCsrfToken` directly. Total: 54 CSRF-protected endpoints.
+Note: All admin routes use `requireAdminAuthWithCsrf` middleware which internally calls `validateCsrfToken`, while user-facing routes use `validateCsrfToken` directly. Total: 53 CSRF-protected endpoints.
 
 **Intentional Exemptions:**
 - `/api/admin/login` - No session exists pre-authentication
@@ -290,7 +299,7 @@ When adding new features, ensure:
    - If bypass suspected: Immediately escalate to P0, disable affected endpoints
 
 4. **Eradication:**
-   - Verify all 54 protected endpoints have `validateCsrfToken` middleware
+   - Verify all 53 protected endpoints have `validateCsrfToken` middleware
    - Review recent code changes for accidental CSRF protection removal
    - If compromise suspected: Rotate `SESSION_SECRET` (forces re-login)
 

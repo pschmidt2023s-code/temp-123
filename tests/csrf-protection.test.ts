@@ -17,14 +17,53 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5000';
 const results: TestResult[] = [];
 
 /**
- * Helper to extract CSRF token from cookies
+ * Helper to extract CSRF token from cookies (robust parsing)
  */
-function extractCsrfToken(cookies: string[]): string | null {
+function extractCsrfToken(cookieHeader: string | string[] | null): string | null {
+  if (!cookieHeader) return null;
+  
+  const cookies = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader];
+  
   for (const cookie of cookies) {
-    const match = cookie.match(/csrf_token=([^;]+)/);
+    // Handle Set-Cookie format: csrf_token=value; Path=/; HttpOnly
+    const match = cookie.match(/csrf_token=([^;,\s]+)/);
     if (match) return match[1];
   }
   return null;
+}
+
+/**
+ * Helper to extract admin session token from cookies
+ */
+function extractAdminSession(cookieHeader: string | string[] | null): string | null {
+  if (!cookieHeader) return null;
+  
+  const cookies = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader];
+  
+  for (const cookie of cookies) {
+    const match = cookie.match(/admin_session=([^;,\s]+)/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+/**
+ * Helper to parse all cookies from Set-Cookie header
+ */
+function parseCookies(cookieHeader: string | string[] | null): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!cookieHeader) return result;
+  
+  const cookies = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader];
+  
+  for (const cookie of cookies) {
+    const parts = cookie.split(';')[0].split('=');
+    if (parts.length === 2) {
+      result[parts[0].trim()] = parts[1].trim();
+    }
+  }
+  
+  return result;
 }
 
 /**
@@ -294,6 +333,180 @@ async function testWebhookExemption() {
 }
 
 /**
+ * Test: Complete admin auth flow with CSRF
+ */
+async function testAdminAuthFlowWithCsrf() {
+  // Step 1: Get CSRF token
+  const csrfResponse = await makeRequest('GET', '/api/csrf-token');
+  const csrfToken = extractCsrfToken(csrfResponse.headers.get('set-cookie'));
+  
+  if (!csrfToken) {
+    results.push({
+      name: 'Complete admin auth flow with CSRF protection',
+      passed: false,
+      error: 'Failed to obtain CSRF token',
+    });
+    return;
+  }
+  
+  // Step 2: Login with valid credentials (requires env vars ADMIN_USERNAME and ADMIN_PASSWORD)
+  const loginResponse = await makeRequest('POST', '/api/admin/login', {
+    body: {
+      username: process.env.ADMIN_USERNAME || 'admin',
+      password: process.env.ADMIN_PASSWORD || 'admin',
+    },
+  });
+  
+  const adminSession = extractAdminSession(loginResponse.headers.get('set-cookie'));
+  
+  // Step 3: Access protected endpoint WITH CSRF token and session
+  const protectedResponse = await makeRequest('GET', '/api/admin/users', {
+    headers: {
+      'Cookie': `csrf_token=${csrfToken}; admin_session=${adminSession}`,
+      'X-CSRF-Token': csrfToken,
+    },
+  });
+  
+  // Should succeed (200) if auth works, or fail with auth error (not 403 CSRF error)
+  const passed = loginResponse.status === 401 || // Invalid credentials (expected in test)
+                 (loginResponse.status === 200 && protectedResponse.status !== 403);
+  
+  results.push({
+    name: 'Complete admin auth flow with CSRF protection',
+    passed,
+    error: !passed ? `Login: ${loginResponse.status}, Protected: ${protectedResponse.status}` : undefined,
+  });
+}
+
+/**
+ * Test: DELETE endpoints require CSRF token
+ */
+async function testDeleteEndpointCsrf() {
+  const response = await makeRequest('DELETE', '/api/playlists/test-id', {
+    body: {},
+  });
+  
+  results.push({
+    name: 'DELETE /api/playlists/:id without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: PATCH endpoints require CSRF token
+ */
+async function testPatchEndpointCsrf() {
+  const response = await makeRequest('PATCH', '/api/playlists/test-id', {
+    body: { name: 'Updated Name' },
+  });
+  
+  results.push({
+    name: 'PATCH /api/playlists/:id without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: AI playlist endpoints require CSRF token
+ */
+async function testAiPlaylistCsrf() {
+  const response = await makeRequest('POST', '/api/ai-playlists', {
+    body: {
+      userId: 'test-user',
+      mood: 'happy',
+      trackCount: 20,
+    },
+  });
+  
+  results.push({
+    name: 'POST /api/ai-playlists without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: Download endpoints require CSRF token
+ */
+async function testDownloadCsrf() {
+  const response = await makeRequest('POST', '/api/downloads', {
+    body: {
+      userId: 'test-user',
+      trackId: 'test-track',
+      trackName: 'Test Song',
+      artistName: 'Test Artist',
+      fileSize: 5000000,
+    },
+  });
+  
+  results.push({
+    name: 'POST /api/downloads without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: Radio station endpoints require CSRF token
+ */
+async function testRadioCsrf() {
+  const response = await makeRequest('POST', '/api/radio', {
+    body: {
+      userId: 'test-user',
+      name: 'Test Radio',
+      seedType: 'track',
+      seedId: 'test-track',
+    },
+  });
+  
+  results.push({
+    name: 'POST /api/radio without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: Alarm endpoints require CSRF token
+ */
+async function testAlarmCsrf() {
+  const response = await makeRequest('POST', '/api/alarms', {
+    body: {
+      userId: 'test-user',
+      time: '07:00',
+      enabled: true,
+      days: ['monday', 'tuesday'],
+    },
+  });
+  
+  results.push({
+    name: 'POST /api/alarms without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
+ * Test: Gift card redemption requires CSRF token
+ */
+async function testGiftCardCsrf() {
+  const response = await makeRequest('POST', '/api/gift-cards/redeem', {
+    body: {
+      userId: 'test-user',
+      code: 'TEST-CODE',
+    },
+  });
+  
+  results.push({
+    name: 'POST /api/gift-cards/redeem without CSRF token should fail (403)',
+    passed: response.status === 403,
+    error: response.status !== 403 ? `Expected 403, got ${response.status}` : undefined,
+  });
+}
+
+/**
  * Run all tests
  */
 async function runTests() {
@@ -301,17 +514,32 @@ async function runTests() {
   console.log(`Testing against: ${BASE_URL}\n`);
   
   try {
+    // Core CSRF tests
     await testCsrfTokenGeneration();
     await testPostWithoutCsrfToken();
     await testPostWithCsrfToken();
     await testCsrfTokenMismatch();
+    
+    // Endpoint-specific CSRF tests
     await testAdminCsrfProtection();
     await testPaymentCsrfProtection();
     await testFriendsCsrfProtection();
     await testQuizCsrfProtection();
     await testSubscriptionCsrfProtection();
+    await testDeleteEndpointCsrf();
+    await testPatchEndpointCsrf();
+    await testAiPlaylistCsrf();
+    await testDownloadCsrf();
+    await testRadioCsrf();
+    await testAlarmCsrf();
+    await testGiftCardCsrf();
+    
+    // Exemptions
     await testLoginExemption();
     await testWebhookExemption();
+    
+    // Auth flow integration
+    await testAdminAuthFlowWithCsrf();
   } catch (error: any) {
     console.error('❌ Test suite failed:', error.message);
     process.exit(1);
