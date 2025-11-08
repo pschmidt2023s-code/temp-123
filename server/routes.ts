@@ -1740,6 +1740,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== PHASE 2.2: AI PLAYLIST ROUTES ==========
+  
+  // Get user's AI playlists
+  app.get('/api/ai-playlists/:userId', async (req, res) => {
+    try {
+      const playlists = await storage.getGeneratedPlaylists(req.params.userId);
+      res.json(playlists);
+    } catch (error) {
+      console.error('Get AI playlists error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get single AI playlist
+  app.get('/api/ai-playlists/single/:id', async (req, res) => {
+    try {
+      const playlist = await storage.getGeneratedPlaylist(req.params.id);
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      res.json(playlist);
+    } catch (error) {
+      console.error('Get AI playlist error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Create AI playlist
+  app.post('/api/ai-playlists', async (req, res) => {
+    try {
+      const { userId, name, mood, tracks, coverUrl } = req.body;
+      if (!userId || !name || !mood || !tracks || !Array.isArray(tracks)) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      const playlist = await storage.createGeneratedPlaylist({
+        userId,
+        name,
+        type: 'ai_generated',
+        mood,
+        tracks,
+        coverUrl
+      });
+      
+      res.status(201).json(playlist);
+    } catch (error) {
+      console.error('Create AI playlist error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Delete AI playlist
+  app.delete('/api/ai-playlists/:id', async (req, res) => {
+    try {
+      const deleted = await storage.deleteGeneratedPlaylist(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete AI playlist error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Refresh AI playlist (regenerate tracks)
+  app.post('/api/ai-playlists/:id/refresh', async (req, res) => {
+    try {
+      const playlist = await storage.refreshGeneratedPlaylist(req.params.id);
+      res.json(playlist);
+    } catch (error: any) {
+      console.error('Refresh AI playlist error:', error);
+      if (error.message === 'Playlist not found') {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Lyrics Routes (Admin Protected)
   app.get('/api/lyrics/:releaseId', async (req, res) => {
     try {

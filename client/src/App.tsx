@@ -29,6 +29,7 @@ import Alarms from "@/pages/Alarms";
 import Stats from "@/pages/Stats";
 import Rewards from "@/pages/Rewards";
 import Friends from "@/pages/Friends";
+import AIPlaylists from "@/pages/AIPlaylists";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -63,6 +64,7 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/stats" component={Stats} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/rewards" component={Rewards} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/friends" component={Friends} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/ai-playlists" component={AIPlaylists} />}
       <Route component={NotFound} />
     </Switch>
   );

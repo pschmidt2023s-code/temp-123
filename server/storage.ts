@@ -149,7 +149,7 @@ export interface IStorage {
   getTotalListeningTime(userId: string): Promise<number>;
   trackSongPlay(userId: string, songId: string, songTitle: string, artistName: string, durationMinutes: number): Promise<void>;
   
-  // ========== PHASE 2: FRIEND SYSTEM ==========
+  // ========== PHASE 2.1: FRIEND SYSTEM ==========
   getFriends(userId: string): Promise<any[]>;
   getPendingFriendRequests(userId: string): Promise<any[]>;
   sendFriendRequest(userId: string, friendId: string): Promise<any>;
@@ -158,6 +158,13 @@ export interface IStorage {
   removeFriend(friendshipId: string): Promise<boolean>;
   getFriendActivity(userId: string, limit?: number): Promise<any[]>;
   recordFriendActivity(userId: string, trackId: string, trackName: string, artistName: string, albumArt?: string): Promise<any>;
+
+  // ========== PHASE 2.2: AI PLAYLISTS ==========
+  getGeneratedPlaylists(userId: string): Promise<any[]>;
+  getGeneratedPlaylist(id: string): Promise<any | undefined>;
+  createGeneratedPlaylist(data: any): Promise<any>;
+  deleteGeneratedPlaylist(id: string): Promise<boolean>;
+  refreshGeneratedPlaylist(id: string): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -560,6 +567,27 @@ export class MemStorage implements IStorage {
   async recordFriendActivity(userId: string, trackId: string, trackName: string, artistName: string, albumArt?: string): Promise<any> {
     throw new Error('Friend system not implemented in MemStorage');
   }
+
+  // ========== PHASE 2.2: AI PLAYLISTS STUBS ==========
+  async getGeneratedPlaylists(userId: string): Promise<any[]> {
+    throw new Error('AI Playlists not implemented in MemStorage');
+  }
+
+  async getGeneratedPlaylist(id: string): Promise<any | undefined> {
+    throw new Error('AI Playlists not implemented in MemStorage');
+  }
+
+  async createGeneratedPlaylist(data: any): Promise<any> {
+    throw new Error('AI Playlists not implemented in MemStorage');
+  }
+
+  async deleteGeneratedPlaylist(id: string): Promise<boolean> {
+    throw new Error('AI Playlists not implemented in MemStorage');
+  }
+
+  async refreshGeneratedPlaylist(id: string): Promise<any> {
+    throw new Error('AI Playlists not implemented in MemStorage');
+  }
 }
 
 import { db } from './db';
@@ -588,7 +616,8 @@ import {
   giftCards,
   referrals,
   friends,
-  friendActivity
+  friendActivity,
+  generatedPlaylists
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -1439,6 +1468,54 @@ class DbStorage implements IStorage {
       albumArt
     }).returning();
 
+    return result[0];
+  }
+
+  // ========== PHASE 2.2: AI PLAYLISTS ==========
+  async getGeneratedPlaylists(userId: string): Promise<any[]> {
+    const playlists = await db.select().from(generatedPlaylists)
+      .where(eq(generatedPlaylists.userId, userId))
+      .orderBy(desc(generatedPlaylists.createdAt));
+    return playlists;
+  }
+
+  async getGeneratedPlaylist(id: string): Promise<any | undefined> {
+    const result = await db.select().from(generatedPlaylists)
+      .where(eq(generatedPlaylists.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createGeneratedPlaylist(data: any): Promise<any> {
+    const result = await db.insert(generatedPlaylists).values(data).returning();
+    return result[0];
+  }
+
+  async deleteGeneratedPlaylist(id: string): Promise<boolean> {
+    const result = await db.delete(generatedPlaylists)
+      .where(eq(generatedPlaylists.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async refreshGeneratedPlaylist(id: string): Promise<any> {
+    const playlist = await this.getGeneratedPlaylist(id);
+    if (!playlist) throw new Error('Playlist not found');
+
+    const newTracks: string[] = [];
+    const trackCount = playlist.tracks?.length || 20;
+    for (let i = 0; i < trackCount; i++) {
+      newTracks.push(`${playlist.mood}-track-${Date.now()}-${i}`);
+    }
+
+    const result = await db.update(generatedPlaylists)
+      .set({ 
+        tracks: newTracks,
+        lastRefreshedAt: new Date(),
+      })
+      .where(eq(generatedPlaylists.id, id))
+      .returning();
+    
     return result[0];
   }
 }
