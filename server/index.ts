@@ -1,6 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { generateCsrfToken } from "./csrf";
+import { apiLimiter } from "./rateLimiter";
 
 const app = express();
 
@@ -9,12 +12,19 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+app.use(cookieParser());
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Generate CSRF tokens for all requests
+app.use(generateCsrfToken);
+
+// Apply general rate limiting to all API routes
+app.use('/api', apiLimiter);
 
 app.use('/uploads', express.static('uploads'));
 

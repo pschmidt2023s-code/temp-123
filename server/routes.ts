@@ -32,6 +32,8 @@ import Stripe from "stripe";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import { generateCsrfToken, validateCsrfToken } from "./csrf";
+import { authLimiter, registerLimiter, paymentLimiter, adminAuthLimiter } from "./rateLimiter";
 import { 
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -100,22 +102,32 @@ const uploadAudio = multer({
   }
 });
 
-// Admin authentication middleware
+// Admin authentication middleware - now using HttpOnly cookies
 async function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+  const token = req.cookies?.admin_session;
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No session cookie' });
   }
 
-  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   const isValid = await storage.validateAdminSession(token);
   
   if (!isValid) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired session' });
   }
 
   next();
+}
+
+// Combined middleware: Admin auth + CSRF protection
+async function requireAdminAuthWithCsrf(req: Request, res: Response, next: NextFunction) {
+  try {
+    await requireAdminAuth(req, res, () => {
+      validateCsrfToken(req, res, next);
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -158,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/user/:id/apple-token', async (req, res) => {
+  app.post('/api/user/:id/apple-token', validateCsrfToken, async (req, res) => {
     try {
       const { token } = req.body;
       if (!token) {
@@ -200,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/playlists', async (req, res) => {
+  app.post('/api/playlists', validateCsrfToken, async (req, res) => {
     try {
       const result = insertPlaylistSchema.safeParse(req.body);
       if (!result.success) {
@@ -213,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/playlists/:id', async (req, res) => {
+  app.patch('/api/playlists/:id', validateCsrfToken, async (req, res) => {
     try {
       const playlist = await storage.updatePlaylist(req.params.id, req.body);
       if (!playlist) {
@@ -225,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/playlists/:id', async (req, res) => {
+  app.delete('/api/playlists/:id', validateCsrfToken, async (req, res) => {
     try {
       const deleted = await storage.deletePlaylist(req.params.id);
       if (!deleted) {
@@ -266,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/subscriptions', async (req, res) => {
+  app.post('/api/subscriptions', paymentLimiter, validateCsrfToken, async (req, res) => {
     try {
       const result = insertSubscriptionSchema.safeParse(req.body);
       if (!result.success) {
@@ -290,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/subscriptions/:id', async (req, res) => {
+  app.patch('/api/subscriptions/:id', validateCsrfToken, async (req, res) => {
     try {
       const subscription = await storage.updateSubscription(req.params.id, req.body);
       if (!subscription) {
@@ -306,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/subscriptions/:id/cancel', async (req, res) => {
+  app.post('/api/subscriptions/:id/cancel', validateCsrfToken, async (req, res) => {
     try {
       const cancelled = await storage.cancelSubscription(req.params.id);
       if (!cancelled) {
@@ -320,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe Checkout Session for Subscriptions
   // Validate coupon code
-  app.post('/api/validate-coupon', async (req, res) => {
+  app.post('/api/validate-coupon', validateCsrfToken, async (req, res) => {
     try {
       const { code, tier } = req.body;
       
@@ -359,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/create-checkout-session', async (req, res) => {
+  app.post('/api/create-checkout-session', paymentLimiter, validateCsrfToken, async (req, res) => {
     try {
       const { tier, userId, isUpgrade, couponCode } = req.body;
       
@@ -608,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Authentication Routes
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', registerLimiter, async (req, res) => {
     try {
       const { username, email, password } = req.body;
       
@@ -648,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       
@@ -690,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 2FA verify code (TOTP or backup code)
-  app.post('/api/auth/verify-2fa', async (req, res) => {
+  app.post('/api/auth/verify-2fa', authLimiter, async (req, res) => {
     try {
       const { userId, token } = req.body;
       
@@ -747,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 2FA setup - generate secret
-  app.post('/api/auth/2fa/setup', async (req, res) => {
+  app.post('/api/auth/2fa/setup', validateCsrfToken, async (req, res) => {
     try {
       const { userId } = req.body;
       
@@ -791,7 +803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 2FA enable - verify and activate
-  app.post('/api/auth/2fa/enable', async (req, res) => {
+  app.post('/api/auth/2fa/enable', validateCsrfToken, async (req, res) => {
     try {
       const { userId, token } = req.body;
       
@@ -825,7 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 2FA disable
-  app.post('/api/auth/2fa/disable', async (req, res) => {
+  app.post('/api/auth/2fa/disable', validateCsrfToken, async (req, res) => {
     try {
       const { userId, password } = req.body;
       
@@ -857,7 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // WebAuthn - Generate registration options
-  app.post('/api/auth/webauthn/register-options', async (req, res) => {
+  app.post('/api/auth/webauthn/register-options', validateCsrfToken, async (req, res) => {
     try {
       const { userId } = req.body;
       
@@ -900,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // WebAuthn - Verify registration
-  app.post('/api/auth/webauthn/register-verify', async (req, res) => {
+  app.post('/api/auth/webauthn/register-verify', validateCsrfToken, async (req, res) => {
     try {
       const { userId, response, deviceName } = req.body;
       
@@ -945,7 +957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // WebAuthn - Generate authentication options
-  app.post('/api/auth/webauthn/login-options', async (req, res) => {
+  app.post('/api/auth/webauthn/login-options', validateCsrfToken, async (req, res) => {
     try {
       const { email } = req.body;
       
@@ -983,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // WebAuthn - Verify authentication
-  app.post('/api/auth/webauthn/login-verify', async (req, res) => {
+  app.post('/api/auth/webauthn/login-verify', validateCsrfToken, async (req, res) => {
     try {
       const { userId, response } = req.body;
       
@@ -1055,7 +1067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete passkey
-  app.delete('/api/auth/webauthn/credentials/:id', async (req, res) => {
+  app.delete('/api/auth/webauthn/credentials/:id', validateCsrfToken, async (req, res) => {
     try {
       const deleted = await storage.deleteWebAuthnCredential(req.params.id);
       
@@ -1070,7 +1082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Authentication Routes
-  app.post('/api/admin/login', async (req, res) => {
+  app.post('/api/admin/login', adminAuthLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -1108,9 +1120,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store session in server
       await storage.createAdminSession(sessionToken, adminUsername);
       
+      // Set HttpOnly cookie (secure, cannot be accessed via JavaScript)
+      res.cookie('admin_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
+      });
+      
       res.json({ 
-        success: true, 
-        token: sessionToken,
+        success: true,
         username: adminUsername 
       });
     } catch (error) {
@@ -1119,14 +1139,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check admin session validity
+  app.get('/api/admin/check-session', requireAdminAuthWithCsrf, async (req, res) => {
+    res.json({ success: true, authenticated: true });
+  });
+
   // Admin logout route
-  app.post('/api/admin/logout', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/logout', requireAdminAuthWithCsrf, async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (authHeader) {
-        const token = authHeader.substring(7);
+      const token = req.cookies?.admin_session;
+      if (token) {
         await storage.invalidateAdminSession(token);
       }
+      
+      // Clear the HttpOnly cookie
+      res.clearCookie('admin_session', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/'
+      });
+      
       res.json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
@@ -1134,7 +1167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin User Management Routes (Protected)
-  app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/users', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       // Fetch subscriptions for all users
@@ -1154,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:id/subscription', requireAdminAuth, async (req, res) => {
+  app.patch('/api/admin/users/:id/subscription', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const { tier, status, endDate } = req.body;
       const user = await storage.getUser(req.params.id);
@@ -1191,7 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/users/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/users/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
@@ -1217,7 +1250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File Upload Routes (Protected)
-  app.post('/api/admin/upload/cover', requireAdminAuth, uploadCover.single('cover'), (req, res) => {
+  app.post('/api/admin/upload/cover', requireAdminAuthWithCsrf, uploadCover.single('cover'), (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'Keine Datei hochgeladen' });
@@ -1229,7 +1262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/upload/audio', requireAdminAuth, uploadAudio.single('audio'), (req, res) => {
+  app.post('/api/admin/upload/audio', requireAdminAuthWithCsrf, uploadAudio.single('audio'), (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'Keine Datei hochgeladen' });
@@ -1242,7 +1275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Release Management Routes (Protected)
-  app.get('/api/admin/releases', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/releases', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const releases = await storage.getAllReleases();
       res.json(releases);
@@ -1251,7 +1284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/releases/:id', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/releases/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const release = await storage.getRelease(req.params.id);
       if (!release) {
@@ -1263,7 +1296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/releases', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/releases', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       console.log('Received release data:', JSON.stringify(req.body, null, 2));
       const result = insertReleaseSchema.safeParse(req.body);
@@ -1279,7 +1312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/releases/:id', requireAdminAuth, async (req, res) => {
+  app.patch('/api/admin/releases/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const release = await storage.updateRelease(req.params.id, req.body);
       if (!release) {
@@ -1291,7 +1324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/releases/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/releases/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const deleted = await storage.deleteRelease(req.params.id);
       if (!deleted) {
@@ -1304,7 +1337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Artist Registration Link Routes (Protected)
-  app.get('/api/admin/artist-links', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/artist-links', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const links = await storage.getAllArtistLinks();
       res.json(links);
@@ -1313,7 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/artist-links', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/artist-links', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const linkCode = randomBytes(16).toString('hex');
       const expiresAt = new Date();
@@ -1350,7 +1383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/artist-register', async (req, res) => {
+  app.post('/api/artist-register', validateCsrfToken, async (req, res) => {
     try {
       const validation = z.object({
         registrationCode: z.string().min(1, 'Registration code is required'),
@@ -1413,7 +1446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/artist-links/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/artist-links/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const deleted = await storage.deleteArtistLink(req.params.id);
       if (!deleted) {
@@ -1426,7 +1459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Streaming Service Management Routes (Protected)
-  app.get('/api/admin/services', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/services', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const services = await storage.getAllStreamingServices();
       res.json(services);
@@ -1435,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/services', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/services', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const result = insertStreamingServiceSchema.safeParse(req.body);
       if (!result.success) {
@@ -1448,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/services/:id', requireAdminAuth, async (req, res) => {
+  app.patch('/api/admin/services/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const service = await storage.updateStreamingService(req.params.id, req.body);
       if (!service) {
@@ -1460,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/services/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/services/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const deleted = await storage.deleteStreamingService(req.params.id);
       if (!deleted) {
@@ -1485,7 +1518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/settings/:userId', async (req, res) => {
+  app.patch('/api/settings/:userId', validateCsrfToken, async (req, res) => {
     try {
       // Validate with partial schema to allow partial updates
       const validation = insertUserSettingsSchema.omit({ userId: true }).partial().safeParse(req.body);
@@ -1535,7 +1568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/stats/record-playback', async (req, res) => {
+  app.post('/api/stats/record-playback', validateCsrfToken, async (req, res) => {
     try {
       const { userId, artistName, songId, songTitle, durationMinutes } = req.body;
       await storage.recordPlayback(userId, artistName, songId, songTitle, durationMinutes);
@@ -1555,7 +1588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/achievements/:achievementId/share', async (req, res) => {
+  app.post('/api/achievements/:achievementId/share', validateCsrfToken, async (req, res) => {
     try {
       const shared = await storage.markAchievementShared(req.params.achievementId);
       if (!shared) {
@@ -1577,7 +1610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/artist/profile', async (req, res) => {
+  app.post('/api/artist/profile', validateCsrfToken, async (req, res) => {
     try {
       const result = insertArtistProfileSchema.safeParse(req.body);
       if (!result.success) {
@@ -1590,7 +1623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/artist/profile/:id', async (req, res) => {
+  app.patch('/api/artist/profile/:id', validateCsrfToken, async (req, res) => {
     try {
       const profile = await storage.updateArtistProfile(req.params.id, req.body);
       if (!profile) {
@@ -1621,7 +1654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/streaming-events', async (req, res) => {
+  app.post('/api/streaming-events', validateCsrfToken, async (req, res) => {
     try {
       const result = insertStreamingEventSchema.safeParse(req.body);
       if (!result.success) {
@@ -1659,7 +1692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send friend request
-  app.post('/api/friends/request', async (req, res) => {
+  app.post('/api/friends/request', validateCsrfToken, async (req, res) => {
     try {
       const { userId, friendId } = req.body;
       if (!userId || !friendId) {
@@ -1674,7 +1707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Accept friend request
-  app.post('/api/friends/:requestId/accept', async (req, res) => {
+  app.post('/api/friends/:requestId/accept', validateCsrfToken, async (req, res) => {
     try {
       const friendship = await storage.acceptFriendRequest(req.params.requestId);
       if (!friendship) {
@@ -1688,7 +1721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject friend request
-  app.delete('/api/friends/:requestId/reject', async (req, res) => {
+  app.delete('/api/friends/:requestId/reject', validateCsrfToken, async (req, res) => {
     try {
       const rejected = await storage.rejectFriendRequest(req.params.requestId);
       if (!rejected) {
@@ -1702,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Remove friend
-  app.delete('/api/friends/:friendshipId', async (req, res) => {
+  app.delete('/api/friends/:friendshipId', validateCsrfToken, async (req, res) => {
     try {
       const removed = await storage.removeFriend(req.params.friendshipId);
       if (!removed) {
@@ -1728,7 +1761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Record friend activity
-  app.post('/api/friends/activity', async (req, res) => {
+  app.post('/api/friends/activity', validateCsrfToken, async (req, res) => {
     try {
       const { userId, trackId, trackName, artistName, albumArt } = req.body;
       if (!userId || !trackId || !trackName || !artistName) {
@@ -1770,7 +1803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create AI playlist
-  app.post('/api/ai-playlists', async (req, res) => {
+  app.post('/api/ai-playlists', validateCsrfToken, async (req, res) => {
     try {
       const { userId, name, mood, tracks, coverUrl } = req.body;
       if (!userId || !name || !mood || !tracks || !Array.isArray(tracks)) {
@@ -1794,7 +1827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete AI playlist
-  app.delete('/api/ai-playlists/:id', async (req, res) => {
+  app.delete('/api/ai-playlists/:id', validateCsrfToken, async (req, res) => {
     try {
       const deleted = await storage.deleteGeneratedPlaylist(req.params.id);
       if (!deleted) {
@@ -1808,7 +1841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh AI playlist (regenerate tracks)
-  app.post('/api/ai-playlists/:id/refresh', async (req, res) => {
+  app.post('/api/ai-playlists/:id/refresh', validateCsrfToken, async (req, res) => {
     try {
       const playlist = await storage.refreshGeneratedPlaylist(req.params.id);
       res.json(playlist);
@@ -1849,7 +1882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create quiz
-  app.post('/api/quizzes', async (req, res) => {
+  app.post('/api/quizzes', validateCsrfToken, async (req, res) => {
     try {
       const result = insertMusicQuizSchema.safeParse(req.body);
       if (!result.success) {
@@ -1864,7 +1897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Increment quiz play count
-  app.post('/api/quizzes/:id/play', async (req, res) => {
+  app.post('/api/quizzes/:id/play', validateCsrfToken, async (req, res) => {
     try {
       await storage.incrementQuizPlayCount(req.params.id);
       res.json({ success: true });
@@ -1875,7 +1908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit quiz score
-  app.post('/api/quizzes/:id/scores', async (req, res) => {
+  app.post('/api/quizzes/:id/scores', validateCsrfToken, async (req, res) => {
     try {
       const { userId, score, maxScore } = req.body;
       if (!userId || typeof score !== 'number' || typeof maxScore !== 'number') {
@@ -1946,7 +1979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update listening stats (called when song plays)
-  app.post('/api/leaderboards/track-play', async (req, res) => {
+  app.post('/api/leaderboards/track-play', validateCsrfToken, async (req, res) => {
     try {
       const { userId, artistId, artistName, minutes } = req.body;
       if (!userId || !artistId || !artistName || typeof minutes !== 'number') {
@@ -1986,7 +2019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/lyrics', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/lyrics', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const result = insertLyricsSchema.safeParse(req.body);
       if (!result.success) {
@@ -1999,7 +2032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/lyrics/:id', requireAdminAuth, async (req, res) => {
+  app.patch('/api/admin/lyrics/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const lyrics = await storage.updateLyrics(req.params.id, req.body);
       if (!lyrics) {
@@ -2011,7 +2044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/lyrics/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/lyrics/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const deleted = await storage.deleteLyrics(req.params.id);
       if (!deleted) {
@@ -2023,7 +2056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/lyrics/all', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/lyrics/all', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const allLyrics = await storage.getAllLyrics();
       res.json(allLyrics);
@@ -2033,7 +2066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Coupon Management Routes (Admin)
-  app.get('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/coupons', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const coupons = await storage.getAllCoupons();
       res.json(coupons);
@@ -2042,7 +2075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/coupons', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const result = insertCouponSchema.safeParse(req.body);
       if (!result.success) {
@@ -2055,7 +2088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/coupons/:id', requireAdminAuth, async (req, res) => {
+  app.patch('/api/admin/coupons/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const coupon = await storage.updateCoupon(req.params.id, req.body);
       if (!coupon) {
@@ -2067,7 +2100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/coupons/:id', requireAdminAuth, async (req, res) => {
+  app.delete('/api/admin/coupons/:id', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const deleted = await storage.deleteCoupon(req.params.id);
       if (!deleted) {
@@ -2079,7 +2112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/coupons/:id/usages', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/coupons/:id/usages', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const usages = await storage.getCouponUsages(req.params.id);
       res.json(usages);
@@ -2089,7 +2122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public coupon validation
-  app.post('/api/coupons/validate', async (req, res) => {
+  app.post('/api/coupons/validate', validateCsrfToken, async (req, res) => {
     try {
       const { code, tier, userId } = req.body;
       
@@ -2165,7 +2198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/audio-settings', async (req, res) => {
+  app.post('/api/audio-settings', validateCsrfToken, async (req, res) => {
     try {
       const data = insertAudioSettingsSchema.parse(req.body);
       const settings = await storage.createOrUpdateAudioSettings(data);
@@ -2189,7 +2222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/alarms', async (req, res) => {
+  app.post('/api/alarms', validateCsrfToken, async (req, res) => {
     try {
       const data = insertAlarmSchema.parse(req.body);
       const alarm = await storage.createAlarm(data);
@@ -2202,7 +2235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/alarms/:id', async (req, res) => {
+  app.patch('/api/alarms/:id', validateCsrfToken, async (req, res) => {
     try {
       const alarm = await storage.updateAlarm(req.params.id, req.body);
       res.json(alarm);
@@ -2211,7 +2244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/alarms/:id', async (req, res) => {
+  app.delete('/api/alarms/:id', validateCsrfToken, async (req, res) => {
     try {
       await storage.deleteAlarm(req.params.id);
       res.json({ success: true });
@@ -2231,7 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/sleep-timer', async (req, res) => {
+  app.post('/api/sleep-timer', validateCsrfToken, async (req, res) => {
     try {
       const data = insertSleepTimerSchema.parse(req.body);
       const timer = await storage.createSleepTimer(data);
@@ -2244,7 +2277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/sleep-timer/:id', async (req, res) => {
+  app.delete('/api/sleep-timer/:id', validateCsrfToken, async (req, res) => {
     try {
       await storage.deleteSleepTimer(req.params.id);
       res.json({ success: true });
@@ -2255,7 +2288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== PHASE 1: GIFT CARDS ==========
   
-  app.post('/api/gift-cards/redeem', async (req, res) => {
+  app.post('/api/gift-cards/redeem', validateCsrfToken, async (req, res) => {
     try {
       const { code, userId } = req.body;
       if (!code || !userId) {
@@ -2269,7 +2302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/gift-cards', requireAdminAuth, async (req, res) => {
+  app.post('/api/admin/gift-cards', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const data = insertGiftCardSchema.parse(req.body);
       const giftCard = await storage.createGiftCard(data);
@@ -2282,7 +2315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/gift-cards', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/gift-cards', requireAdminAuthWithCsrf, async (req, res) => {
     try {
       const giftCards = await storage.getAllGiftCards();
       res.json(giftCards);
@@ -2302,7 +2335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/referrals/generate', async (req, res) => {
+  app.post('/api/referrals/generate', validateCsrfToken, async (req, res) => {
     try {
       const { userId } = req.body;
       if (!userId) {
@@ -2324,7 +2357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/referrals/apply', async (req, res) => {
+  app.post('/api/referrals/apply', validateCsrfToken, async (req, res) => {
     try {
       const { code, userId } = req.body;
       if (!code || !userId) {
@@ -2368,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/user-stats/track-play', async (req, res) => {
+  app.post('/api/user-stats/track-play', validateCsrfToken, async (req, res) => {
     try {
       const { userId, songId, songTitle, artistName, durationMinutes } = req.body;
       await storage.trackSongPlay(userId, songId, songTitle, artistName, durationMinutes || 3);
@@ -2390,7 +2423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/downloads', async (req, res) => {
+  app.post('/api/downloads', validateCsrfToken, async (req, res) => {
     try {
       const validated = insertOfflineDownloadSchema.parse(req.body);
       const download = await storage.createDownload(validated);
@@ -2404,7 +2437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/downloads/:id', async (req, res) => {
+  app.delete('/api/downloads/:id', validateCsrfToken, async (req, res) => {
     try {
       const success = await storage.deleteDownload(req.params.id);
       res.json({ success });
@@ -2436,7 +2469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/radio', async (req, res) => {
+  app.post('/api/radio', validateCsrfToken, async (req, res) => {
     try {
       const validated = insertCustomRadioStationSchema.parse(req.body);
       const station = await storage.createRadioStation(validated);
@@ -2450,7 +2483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/radio/:id', async (req, res) => {
+  app.delete('/api/radio/:id', validateCsrfToken, async (req, res) => {
     try {
       const success = await storage.deleteRadioStation(req.params.id);
       res.json({ success });
@@ -2460,7 +2493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/radio/:id/play', async (req, res) => {
+  app.post('/api/radio/:id/play', validateCsrfToken, async (req, res) => {
     try {
       await storage.updateRadioStationPlayCount(req.params.id);
       res.json({ success: true });

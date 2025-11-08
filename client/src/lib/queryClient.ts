@@ -1,14 +1,23 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Helper function to get CSRF token from cookie
+function getCsrfToken(): string | null {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'csrf_token') {
+      return value;
+    }
+  }
+  return null;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     
     // Handle 401 Unauthorized for admin routes
     if (res.status === 401 && res.url.includes('/api/admin')) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_username');
-      
       // Redirect to admin login if on admin page
       if (window.location.pathname.startsWith('/admin') && !window.location.pathname.includes('/login')) {
         window.location.href = '/admin/login';
@@ -32,11 +41,11 @@ export async function apiRequest<T = any>(
     headers["Content-Type"] = "application/json";
   }
   
-  // Add admin token for protected routes
-  if (url.startsWith('/api/admin')) {
-    const token = localStorage.getItem('admin_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  // Add CSRF token for state-changing requests
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
     }
   }
   
@@ -44,7 +53,7 @@ export async function apiRequest<T = any>(
     method,
     headers,
     body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
-    credentials: "include",
+    credentials: "include", // Automatically sends cookies (including HttpOnly)
   });
 
   await throwIfResNotOk(res);
@@ -58,19 +67,9 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = queryKey.join("/") as string;
-    const headers: Record<string, string> = {};
-    
-    // Add admin token for protected routes
-    if (url.startsWith('/api/admin')) {
-      const token = localStorage.getItem('admin_token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
     
     const res = await fetch(url, {
-      credentials: "include",
-      headers,
+      credentials: "include", // Automatically sends cookies (including HttpOnly)
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

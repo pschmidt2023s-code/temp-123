@@ -3,7 +3,6 @@ import { apiRequest } from '@/lib/queryClient';
 
 interface AdminAuthState {
   isAuthenticated: boolean;
-  token: string | null;
   username: string | null;
   isLoading: boolean;
 }
@@ -11,36 +10,39 @@ interface AdminAuthState {
 export function useAdminAuth() {
   const [authState, setAuthState] = useState<AdminAuthState>({
     isAuthenticated: false,
-    token: null,
     username: null,
     isLoading: true,
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    const username = localStorage.getItem('admin_username');
-    if (token && username) {
-      setAuthState({
-        isAuthenticated: true,
-        token,
-        username,
-        isLoading: false,
-      });
-    } else {
-      setAuthState(prev => ({ ...prev, isLoading: false }));
-    }
+    // Check session validity by making a request to protected endpoint
+    const checkSession = async () => {
+      try {
+        await apiRequest('GET', '/api/admin/check-session');
+        setAuthState({
+          isAuthenticated: true,
+          username: 'admin',
+          isLoading: false,
+        });
+      } catch {
+        setAuthState({
+          isAuthenticated: false,
+          username: null,
+          isLoading: false,
+        });
+      }
+    };
+    
+    checkSession();
   }, []);
 
   const login = async (username: string, password: string) => {
     try {
-      const response = await apiRequest<{ success: boolean; token?: string; username?: string }>('POST', '/api/admin/login', { username, password });
+      const response = await apiRequest<{ success: boolean; username?: string }>('POST', '/api/admin/login', { username, password });
       
-      if (response.success && response.token) {
-        localStorage.setItem('admin_token', response.token);
-        localStorage.setItem('admin_username', response.username || username);
+      if (response.success) {
         setAuthState({
           isAuthenticated: true,
-          token: response.token,
           username: response.username || username,
           isLoading: false,
         });
@@ -54,17 +56,12 @@ export function useAdminAuth() {
 
   const logout = async () => {
     try {
-      // Call logout API to invalidate server-side session
       await apiRequest('POST', '/api/admin/logout', {});
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Always clear local storage
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_username');
       setAuthState({
         isAuthenticated: false,
-        token: null,
         username: null,
         isLoading: false,
       });
