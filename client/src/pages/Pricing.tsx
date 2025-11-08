@@ -199,13 +199,15 @@ export default function Pricing() {
         
         <div className="flex justify-center mb-4">
           <Tabs value={billingPeriod} onValueChange={(val) => setBillingPeriod(val as BillingPeriod)}>
-            <TabsList className="grid w-[300px] grid-cols-2">
-              <TabsTrigger value="monthly" data-testid="tab-monthly" className="justify-center">
+            <TabsList className="grid w-full max-w-[350px] grid-cols-2">
+              <TabsTrigger value="monthly" data-testid="tab-monthly" className="flex items-center justify-center">
                 Monatlich
               </TabsTrigger>
-              <TabsTrigger value="yearly" data-testid="tab-yearly" className="justify-center flex-col gap-1">
-                <span>Jährlich</span>
-                <Badge className="bg-green-500 text-white text-xs">17% sparen</Badge>
+              <TabsTrigger value="yearly" data-testid="tab-yearly" className="flex flex-col items-center justify-center gap-0.5 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">Jährlich</span>
+                  <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0.5 h-auto">17%</Badge>
+                </div>
               </TabsTrigger>
             </TabsList>
           </Tabs>

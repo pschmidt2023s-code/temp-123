@@ -6,6 +6,7 @@ import { musicKit } from '@/lib/musickit';
 import { useState, useEffect } from 'react';
 import type { MKMediaItem, Release } from '@shared/schema';
 import { useQuery } from '@tanstack/react-query';
+import { ResponsiveSectionHeader } from '@/components/ResponsivePageHeader';
 
 function convertReleaseToMKItem(release: Release): MKMediaItem {
   return {
@@ -139,7 +140,7 @@ export default function Home() {
     <div className="min-h-screen pb-32">
       {/* Hero Section */}
       <section className="mb-8">
-        <h1 className="text-heading font-bold mb-6" data-testid="text-welcome">
+        <h1 className="text-heading font-bold mb-6 text-center md:text-left" data-testid="text-welcome">
           Für dich
         </h1>
         <div
@@ -171,11 +172,11 @@ export default function Home() {
 
       {/* Recently Played */}
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-subheading font-bold" data-testid="text-section-recent">
-            Kürzlich gespielt
-          </h2>
-        </div>
+        <ResponsiveSectionHeader 
+          title="Kürzlich gespielt" 
+          testId="text-section-recent"
+          className="mb-4"
+        />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {recentlyPlayed.map((item) => (
             <Card
@@ -189,11 +190,11 @@ export default function Home() {
 
       {/* Made For You */}
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-subheading font-bold" data-testid="text-section-for-you">
-            Für dich erstellt
-          </h2>
-        </div>
+        <ResponsiveSectionHeader 
+          title="Für dich erstellt" 
+          testId="text-section-for-you"
+          className="mb-4"
+        />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {recommendations.map((item) => (
             <Card
@@ -207,11 +208,11 @@ export default function Home() {
 
       {/* New Releases */}
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-subheading font-bold" data-testid="text-section-new">
-            Neuerscheinungen
-          </h2>
-        </div>
+        <ResponsiveSectionHeader 
+          title="Neuerscheinungen" 
+          testId="text-section-new"
+          className="mb-4"
+        />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {newReleases.map((item) => (
             <Card

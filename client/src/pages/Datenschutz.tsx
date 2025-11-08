@@ -4,17 +4,19 @@ import { Link } from 'wouter';
 export default function Datenschutz() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
-          data-testid="link-back-home"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Zurück zur Startseite
-        </Link>
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-12">
+        <div className="flex justify-center md:justify-start mb-8">
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="link-back-home"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Zurück zur Startseite
+          </Link>
+        </div>
 
-        <h1 className="text-4xl font-bold mb-8 text-foreground">Datenschutzerklärung</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-8 text-foreground text-center md:text-left">Datenschutzerklärung</h1>
         
         <div className="text-sm text-muted-foreground mb-8">
           Stand: November 2025

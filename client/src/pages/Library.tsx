@@ -5,6 +5,7 @@ import { demoAlbums, demoPlaylists } from '@/lib/demo-data';
 import { useLocation } from 'wouter';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { useToast } from '@/hooks/use-toast';
+import { ResponsivePageHeader, ResponsiveSectionHeader } from '@/components/ResponsivePageHeader';
 
 export default function Library() {
   const [, setLocation] = useLocation();
@@ -48,26 +49,30 @@ export default function Library() {
 
   return (
     <div className="min-h-screen pb-32">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-heading font-bold" data-testid="text-library-title">
-          Deine Bibliothek
-        </h1>
-        <Button
-          onClick={handleCreatePlaylist}
-          disabled={isCreating}
-          className="bg-primary text-primary-foreground"
-          data-testid="button-add-to-library"
-        >
-          <Plus size={20} weight="bold" className="mr-2" />
-          {isCreating ? 'Wird erstellt...' : 'Playlist erstellen'}
-        </Button>
-      </div>
+      <ResponsivePageHeader 
+        title="Deine Bibliothek" 
+        testId="text-library-title"
+        className="mb-8"
+        action={
+          <Button
+            onClick={handleCreatePlaylist}
+            disabled={isCreating}
+            className="bg-primary text-primary-foreground w-full md:w-auto"
+            data-testid="button-add-to-library"
+          >
+            <Plus size={20} weight="bold" className="mr-2" />
+            {isCreating ? 'Wird erstellt...' : 'Playlist erstellen'}
+          </Button>
+        }
+      />
 
       {/* Playlists */}
       <section className="mb-8">
-        <h2 className="text-subheading font-bold mb-4" data-testid="text-section-playlists">
-          Playlists {!isLoading && `(${userPlaylists.length})`}
-        </h2>
+        <ResponsiveSectionHeader 
+          title={`Playlists ${!isLoading ? `(${userPlaylists.length})` : ''}`}
+          testId="text-section-playlists"
+          className="mb-4"
+        />
         {isLoading ? (
           <div className="text-muted-foreground">Lädt...</div>
         ) : (
