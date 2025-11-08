@@ -41,6 +41,7 @@ import VoiceCommands from '@/pages/VoiceCommands';
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
 import { useLocation } from "wouter";
+import { Footer } from "@/components/Footer";
 
 function Router() {
   const [location] = useLocation();
@@ -125,6 +126,7 @@ function App() {
               }}
             >
               <Router />
+              <Footer />
             </main>
           </div>
 
