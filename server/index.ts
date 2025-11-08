@@ -7,6 +7,9 @@ import { apiLimiter } from "./rateLimiter";
 
 const app = express();
 
+// Trust proxy for Replit's reverse proxy (1 hop - prevents IP spoofing)
+app.set('trust proxy', 1);
+
 declare module 'http' {
   interface IncomingMessage {
     rawBody: unknown

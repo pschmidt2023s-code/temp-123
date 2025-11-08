@@ -5,6 +5,11 @@ GlassBeats is a pixel-perfect Spotify UI clone with full Apple Music integration
 
 **Project Status:** All Tier 2 and Tier 3 features complete (31 pages total). Production-ready with comprehensive gamification, social features, creator tools, smart home integration, and bonus features.
 
+**Recent Updates (Nov 8, 2025):**
+- Enhanced Audio Settings: 5-band custom equalizer (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz), Crossfade slider (0-12s), Mono Audio toggle
+- Extended Subscription System: Monthly/Yearly billing toggle with 17% discount on annual plans
+- Gift Card System: Purchase and send gift subscriptions via email with unique redemption codes
+
 ## User Preferences
 Not specified. The agent should infer preferences from the project description.
 
