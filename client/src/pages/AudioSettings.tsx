@@ -17,8 +17,10 @@ const EQ_PRESETS = [
   { value: 'jazz', label: 'Jazz' },
   { value: 'bass_boost', label: 'Bass Boost' },
   { value: 'treble_boost', label: 'Höhen Boost' },
-  { value: 'custom', label: 'Eigener EQ' },
+  { value: 'custom', label: 'Benutzerdefiniert' },
 ];
+
+const EQ_BANDS = ['60Hz', '230Hz', '910Hz', '3.6kHz', '14kHz'];
 
 export default function AudioSettings() {
   const { toast } = useToast();
@@ -33,26 +35,26 @@ export default function AudioSettings() {
   });
 
   const [eqPreset, setEqPreset] = useState('off');
-  const [crossfadeEnabled, setCrossfadeEnabled] = useState(false);
+  const [eqBands, setEqBands] = useState<number[]>([0, 0, 0, 0, 0]);
   const [crossfadeDuration, setCrossfadeDuration] = useState(0);
   const [normalizationEnabled, setNormalizationEnabled] = useState(true);
   const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(false);
-  const [vocalReducerEnabled, setVocalReducerEnabled] = useState(false);
+  const [monoAudioEnabled, setMonoAudioEnabled] = useState(false);
 
   useEffect(() => {
     if (settings) {
       setEqPreset(settings.eqPreset || 'off');
-      setCrossfadeEnabled(settings.crossfadeEnabled || false);
+      setEqBands(settings.eqBands ? JSON.parse(settings.eqBands) : [0, 0, 0, 0, 0]);
       setCrossfadeDuration(settings.crossfadeDuration || 0);
       setNormalizationEnabled(settings.normalizationEnabled ?? true);
       setSpatialAudioEnabled(settings.spatialAudioEnabled || false);
-      setVocalReducerEnabled(settings.vocalReducerEnabled || false);
+      setMonoAudioEnabled(settings.monoAudioEnabled || false);
     }
   }, [settings]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/audio-settings', 'POST', data);
+      return apiRequest('POST', '/api/audio-settings', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/audio-settings', userId] });
@@ -67,11 +69,11 @@ export default function AudioSettings() {
     saveMutation.mutate({
       userId,
       eqPreset,
-      crossfadeEnabled,
+      eqBands: JSON.stringify(eqBands),
       crossfadeDuration,
       normalizationEnabled,
       spatialAudioEnabled,
-      vocalReducerEnabled,
+      monoAudioEnabled,
     });
   };
 
@@ -115,15 +117,38 @@ export default function AudioSettings() {
               </Select>
             </div>
 
-            {eqPreset !== 'off' && (
+            {eqPreset === 'custom' ? (
+              <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-4">Passe jeden Frequenzbereich individuell an</p>
+                {EQ_BANDS.map((band, index) => (
+                  <div key={band} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-medium">{band}</Label>
+                      <span className="text-xs text-muted-foreground">{eqBands[index] > 0 ? '+' : ''}{eqBands[index]}dB</span>
+                    </div>
+                    <Slider
+                      min={-12}
+                      max={12}
+                      step={1}
+                      value={[eqBands[index]]}
+                      onValueChange={(val) => {
+                        const newBands = [...eqBands];
+                        newBands[index] = val[0];
+                        setEqBands(newBands);
+                      }}
+                      data-testid={`slider-eq-${band}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : eqPreset !== 'off' && (
               <div className="p-4 bg-muted/50 rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  {eqPreset === 'rock' && '🎸 Verstärkte Bässe und Höhen für kraftvollen Rock-Sound'}
-                  {eqPreset === 'pop' && '🎤 Ausgewogener Klang mit betonten Mitten für Pop-Musik'}
-                  {eqPreset === 'jazz' && '🎷 Warme Mitten und sanfte Höhen für Jazz-Atmosphäre'}
-                  {eqPreset === 'bass_boost' && '🔊 Maximale Bass-Verstärkung für intensive Tiefbass-Erlebnisse'}
-                  {eqPreset === 'treble_boost' && '✨ Kristallklare Höhen für detailreiche Instrumentierung'}
-                  {eqPreset === 'custom' && '⚙️ Eigener EQ - Bald verfügbar'}
+                  {eqPreset === 'rock' && 'Verstärkte Bässe und Höhen für kraftvollen Rock-Sound'}
+                  {eqPreset === 'pop' && 'Ausgewogener Klang mit betonten Mitten'}
+                  {eqPreset === 'jazz' && 'Warme Mitten und sanfte Höhen'}
+                  {eqPreset === 'bass_boost' && 'Maximale Bass-Verstärkung'}
+                  {eqPreset === 'treble_boost' && 'Kristallklare Höhen'}
                 </p>
               </div>
             )}
@@ -131,45 +156,30 @@ export default function AudioSettings() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4" data-testid="heading-playback">Wiedergabe-Einstellungen</h2>
+          <h2 className="text-lg font-semibold mb-4" data-testid="heading-playback">Wiedergabe</h2>
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="crossfade">Überblendung (Crossfade)</Label>
-                <p className="text-sm text-muted-foreground">
-                  Nahtloser Übergang zwischen Songs
-                </p>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="crossfade-duration">Fade In/Out</Label>
+                <span className="text-xs text-muted-foreground">{crossfadeDuration}s</span>
               </div>
-              <Switch
-                id="crossfade"
-                checked={crossfadeEnabled}
-                onCheckedChange={setCrossfadeEnabled}
-                data-testid="switch-crossfade"
+              <p className="text-sm text-muted-foreground">Sanfte Übergänge zwischen Songs</p>
+              <Slider
+                id="crossfade-duration"
+                min={0}
+                max={12}
+                step={1}
+                value={[crossfadeDuration]}
+                onValueChange={(val) => setCrossfadeDuration(val[0])}
+                data-testid="slider-crossfade-duration"
               />
             </div>
 
-            {crossfadeEnabled && (
-              <div className="space-y-2">
-                <Label htmlFor="crossfade-duration">
-                  Überblendungsdauer: {crossfadeDuration} Sekunden
-                </Label>
-                <Slider
-                  id="crossfade-duration"
-                  min={0}
-                  max={12}
-                  step={1}
-                  value={[crossfadeDuration]}
-                  onValueChange={(val) => setCrossfadeDuration(val[0])}
-                  data-testid="slider-crossfade-duration"
-                />
-              </div>
-            )}
-
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="normalization">Lautstärke-Normalisierung</Label>
+                <Label htmlFor="normalization">Audionormalisierung</Label>
                 <p className="text-sm text-muted-foreground">
-                  Gleicht Lautstärke-Unterschiede zwischen Songs aus
+                  Gleichmäßige Lautstärke
                 </p>
               </div>
               <Switch
@@ -184,7 +194,7 @@ export default function AudioSettings() {
               <div className="space-y-0.5">
                 <Label htmlFor="spatial">Spatial Audio</Label>
                 <p className="text-sm text-muted-foreground">
-                  Immersiver 3D-Sound (erfordert kompatible Kopfhörer)
+                  Immersiver 3D-Sound
                 </p>
               </div>
               <Switch
@@ -194,34 +204,21 @@ export default function AudioSettings() {
                 data-testid="switch-spatial-audio"
               />
             </div>
-          </div>
-        </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4" data-testid="heading-karaoke">Karaoke-Modus</h2>
-          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="vocal-reducer">Vocal Reducer</Label>
+                <Label htmlFor="mono">Mono Audio</Label>
                 <p className="text-sm text-muted-foreground">
-                  Reduziert Gesang für Karaoke-Erlebnis (funktioniert am besten bei zentrierten Vocals)
+                  Beide Kanäle auf Mono
                 </p>
               </div>
               <Switch
-                id="vocal-reducer"
-                checked={vocalReducerEnabled}
-                onCheckedChange={setVocalReducerEnabled}
-                data-testid="switch-vocal-reducer"
+                id="mono"
+                checked={monoAudioEnabled}
+                onCheckedChange={setMonoAudioEnabled}
+                data-testid="switch-mono-audio"
               />
             </div>
-
-            {vocalReducerEnabled && (
-              <div className="p-4 bg-primary/10 rounded-md border border-primary/20">
-                <p className="text-sm text-muted-foreground">
-                  🎤 Vocal Reducer aktiviert - Perfekt für Karaoke! Der Effekt wird beim Abspielen angewendet.
-                </p>
-              </div>
-            )}
           </div>
         </Card>
 

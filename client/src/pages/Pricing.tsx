@@ -1,10 +1,11 @@
-import { Check, Ticket, CreditCard } from '@phosphor-icons/react/dist/ssr';
+import { Check, Ticket, CreditCard, Gift, Copy } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@shared/schema';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
@@ -14,16 +15,23 @@ import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
+type BillingPeriod = 'monthly' | 'yearly';
+
 export default function Pricing() {
   const [userId] = useState('demo-user');
   const { subscription, isLoading } = useSubscription(userId);
   const { toast } = useToast();
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [validatedCoupon, setValidatedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState('');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showGiftCardDialog, setShowGiftCardDialog] = useState(false);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+  const [selectedGiftTier, setSelectedGiftTier] = useState<SubscriptionTier | null>(null);
+  const [giftCardEmail, setGiftCardEmail] = useState('');
+  const [generatedGiftCard, setGeneratedGiftCard] = useState<{code: string; link: string} | null>(null);
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -125,13 +133,58 @@ export default function Pricing() {
   ];
 
   const calculateDiscountedPrice = (tier: SubscriptionTier) => {
-    if (!validatedCoupon) return SUBSCRIPTION_TIERS[tier].price;
+    const tierData = SUBSCRIPTION_TIERS[tier];
+    const basePrice = billingPeriod === 'monthly' ? tierData.price : tierData.yearlyPrice;
     
-    const originalPrice = SUBSCRIPTION_TIERS[tier].price;
+    if (!validatedCoupon) return basePrice;
+    
     if (validatedCoupon.discountType === 'percentage') {
-      return originalPrice * (1 - validatedCoupon.discountValue / 100);
+      return basePrice * (1 - validatedCoupon.discountValue / 100);
     }
-    return Math.max(0, originalPrice - validatedCoupon.discountValue / 100);
+    return Math.max(0, basePrice - validatedCoupon.discountValue / 100);
+  };
+
+  const getPrice = (tier: SubscriptionTier) => {
+    const tierData = SUBSCRIPTION_TIERS[tier];
+    return billingPeriod === 'monthly' ? tierData.price : tierData.yearlyPrice;
+  };
+
+  const handlePurchaseGiftCard = async (tier: SubscriptionTier) => {
+    setSelectedGiftTier(tier);
+    setShowGiftCardDialog(true);
+  };
+
+  const handleGenerateGiftCard = async () => {
+    if (!selectedGiftTier || !giftCardEmail.trim()) {
+      toast({
+        title: 'Fehler',
+        description: 'Bitte gib eine E-Mail-Adresse ein',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const duration = billingPeriod === 'monthly' ? 1 : 12;
+      const result = await apiRequest<{ code: string; link: string }>('POST', '/api/gift-cards/purchase', {
+        tier: selectedGiftTier,
+        durationMonths: duration,
+        recipientEmail: giftCardEmail,
+        userId,
+      });
+
+      setGeneratedGiftCard(result);
+      toast({
+        title: 'Gutscheinkarte erstellt!',
+        description: `Link wurde an ${giftCardEmail} gesendet`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: error.message || 'Gutscheinkarte konnte nicht erstellt werden',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -140,9 +193,21 @@ export default function Pricing() {
         <h1 className="text-4xl font-bold text-foreground mb-4">
           Wähle deinen perfekten Plan
         </h1>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground mb-6">
           100 Millionen Songs. Lossless Audio. Dolby Atmos. Unbegrenzte Möglichkeiten.
         </p>
+        
+        <div className="flex justify-center mb-4">
+          <Tabs value={billingPeriod} onValueChange={(val) => setBillingPeriod(val as BillingPeriod)}>
+            <TabsList className="grid w-[300px] grid-cols-2">
+              <TabsTrigger value="monthly" data-testid="tab-monthly">Monatlich</TabsTrigger>
+              <TabsTrigger value="yearly" data-testid="tab-yearly">
+                Jährlich
+                <Badge className="ml-2 bg-green-500 text-white text-xs">17% sparen</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       <Card className="max-w-md mx-auto mb-8 p-6">
@@ -234,7 +299,7 @@ export default function Pricing() {
                   {validatedCoupon && (!validatedCoupon.applicableTiers || validatedCoupon.applicableTiers.includes(tier)) ? (
                     <>
                       <span className="text-2xl font-bold text-muted-foreground line-through">
-                        {tierData.price.toFixed(2)}€
+                        {getPrice(tier).toFixed(2)}€
                       </span>
                       <span className="text-4xl font-bold text-primary">
                         {calculateDiscountedPrice(tier).toFixed(2)}€
@@ -242,11 +307,16 @@ export default function Pricing() {
                     </>
                   ) : (
                     <span className="text-4xl font-bold text-foreground">
-                      {tierData.price.toFixed(2)}€
+                      {getPrice(tier).toFixed(2)}€
                     </span>
                   )}
-                  <span className="text-muted-foreground">/Monat</span>
+                  <span className="text-muted-foreground">/{billingPeriod === 'monthly' ? 'Monat' : 'Jahr'}</span>
                 </div>
+                {billingPeriod === 'yearly' && (
+                  <p className="text-sm text-green-500 mt-1">
+                    Spare {((tierData.price * 12) - tierData.yearlyPrice).toFixed(2)}€ pro Jahr
+                  </p>
+                )}
               </div>
 
               <ul className="space-y-3 mb-8">
@@ -294,15 +364,27 @@ export default function Pricing() {
                 )}
               </ul>
 
-              <Button
-                className="w-full"
-                variant={popular ? 'default' : 'outline'}
-                disabled={isCurrentTier || checkoutLoading === tier}
-                onClick={() => initiateCheckout(tier)}
-                data-testid={`button-subscribe-${tier}`}
-              >
-                {checkoutLoading === tier ? 'Wird geladen...' : isCurrentTier ? 'Aktueller Plan' : isUpgrade ? 'Jetzt upgraden' : 'Jetzt abschließen'}
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  className="w-full"
+                  variant={popular ? 'default' : 'outline'}
+                  disabled={isCurrentTier || checkoutLoading === tier}
+                  onClick={() => initiateCheckout(tier)}
+                  data-testid={`button-subscribe-${tier}`}
+                >
+                  {checkoutLoading === tier ? 'Wird geladen...' : isCurrentTier ? 'Aktueller Plan' : isUpgrade ? 'Jetzt upgraden' : 'Jetzt abschließen'}
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePurchaseGiftCard(tier)}
+                  data-testid={`button-gift-${tier}`}
+                >
+                  <Gift size={16} weight="bold" className="mr-2" />
+                  Als Geschenk kaufen
+                </Button>
+              </div>
             </Card>
           );
         })}
@@ -349,6 +431,109 @@ export default function Pricing() {
               PayPal
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGiftCardDialog} onOpenChange={(open) => {
+        setShowGiftCardDialog(open);
+        if (!open) {
+          setGeneratedGiftCard(null);
+          setGiftCardEmail('');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gutscheinkarte kaufen</DialogTitle>
+            <DialogDescription>
+              {selectedGiftTier && `Verschenke ${SUBSCRIPTION_TIERS[selectedGiftTier].name} - ${billingPeriod === 'monthly' ? '1 Monat' : '12 Monate'} für ${getPrice(selectedGiftTier).toFixed(2)}€`}
+            </DialogDescription>
+          </DialogHeader>
+          {!generatedGiftCard ? (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="gift-email">E-Mail des Empfängers</Label>
+                <Input
+                  id="gift-email"
+                  type="email"
+                  placeholder="empfaenger@beispiel.de"
+                  value={giftCardEmail}
+                  onChange={(e) => setGiftCardEmail(e.target.value)}
+                  data-testid="input-gift-email"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Der Einlöse-Link wird an diese E-Mail-Adresse gesendet
+                </p>
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleGenerateGiftCard}
+                disabled={!giftCardEmail.trim()}
+                data-testid="button-generate-gift-card"
+              >
+                <Gift size={20} weight="bold" className="mr-2" />
+                Gutscheinkarte erstellen
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <p className="text-sm text-green-700 dark:text-green-300 mb-2">
+                  Gutscheinkarte erfolgreich erstellt!
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Ein Einlöse-Link wurde an {giftCardEmail} gesendet
+                </p>
+                <div className="space-y-2">
+                  <Label className="text-xs">Gutscheincode:</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={generatedGiftCard.code}
+                      readOnly
+                      className="font-mono"
+                      data-testid="text-gift-code"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedGiftCard.code);
+                        toast({
+                          title: 'Kopiert!',
+                          description: 'Code wurde in die Zwischenablage kopiert',
+                        });
+                      }}
+                      data-testid="button-copy-code"
+                    >
+                      <Copy size={16} weight="bold" />
+                    </Button>
+                  </div>
+                  <Label className="text-xs">Einlöse-Link:</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={generatedGiftCard.link}
+                      readOnly
+                      className="font-mono text-xs"
+                      data-testid="text-gift-link"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedGiftCard.link);
+                        toast({
+                          title: 'Kopiert!',
+                          description: 'Link wurde in die Zwischenablage kopiert',
+                        });
+                      }}
+                      data-testid="button-copy-link"
+                    >
+                      <Copy size={16} weight="bold" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

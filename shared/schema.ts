@@ -197,6 +197,21 @@ export const couponUsages = pgTable("coupon_usages", {
   usedAt: timestamp("used_at").defaultNow(),
 });
 
+export const giftCards = pgTable("gift_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  tier: text("tier").notNull(), // 'plus', 'premium', 'family'
+  durationMonths: integer("duration_months").notNull(), // 1, 3, 6, 12
+  purchasedBy: varchar("purchased_by").references(() => users.id),
+  purchasedAt: timestamp("purchased_at").defaultNow(),
+  recipientEmail: text("recipient_email"),
+  redeemedBy: varchar("redeemed_by").references(() => users.id),
+  redeemedAt: timestamp("redeemed_at"),
+  isRedeemed: boolean("is_redeemed").default(false),
+  expiresAt: timestamp("expires_at"),
+  amount: integer("amount").notNull(), // in cents
+});
+
 export const streamingEvents = pgTable("streaming_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   releaseId: varchar("release_id").references(() => releases.id).notNull(),
@@ -278,12 +293,11 @@ export const audioSettings = pgTable("audio_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull().unique(),
   eqPreset: text("eq_preset").default('off'), // 'off', 'rock', 'pop', 'jazz', 'bass_boost', 'treble_boost', 'custom'
-  customEqBands: text("custom_eq_bands"), // JSON: [60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz]
-  crossfadeEnabled: boolean("crossfade_enabled").default(false),
+  eqBands: text("eq_bands"), // JSON array: [0,0,0,0,0] for 5 bands
   crossfadeDuration: integer("crossfade_duration").default(0), // 0-12 seconds
   normalizationEnabled: boolean("normalization_enabled").default(true),
   spatialAudioEnabled: boolean("spatial_audio_enabled").default(false),
-  vocalReducerEnabled: boolean("vocal_reducer_enabled").default(false),
+  monoAudioEnabled: boolean("mono_audio_enabled").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -375,18 +389,6 @@ export const sleepTimers = pgTable("sleep_timers", {
 });
 
 // ========== BONUS: MONETIZATION ==========
-
-export const giftCards = pgTable("gift_cards", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  tier: text("tier").notNull(), // 'plus', 'premium', 'family'
-  durationMonths: integer("duration_months").notNull(), // 1, 3, 6, 12
-  isRedeemed: boolean("is_redeemed").default(false),
-  redeemedBy: varchar("redeemed_by").references(() => users.id),
-  redeemedAt: timestamp("redeemed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  expiresAt: timestamp("expires_at"),
-});
 
 export const referrals = pgTable("referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -543,6 +545,7 @@ export interface SubscriptionFeatures {
   tier: SubscriptionTier;
   name: string;
   price: number;
+  yearlyPrice: number;
   features: {
     adFree: boolean;
     offlineDownloads: boolean;
@@ -559,6 +562,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionFeatures> 
     tier: 'free',
     name: 'Free',
     price: 0,
+    yearlyPrice: 0,
     features: {
       adFree: false,
       offlineDownloads: false,
@@ -573,6 +577,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionFeatures> 
     tier: 'plus',
     name: 'Plus',
     price: 4.99,
+    yearlyPrice: 49.90,
     features: {
       adFree: true,
       offlineDownloads: true,
@@ -587,6 +592,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionFeatures> 
     tier: 'premium',
     name: 'Premium',
     price: 9.99,
+    yearlyPrice: 99.90,
     features: {
       adFree: true,
       offlineDownloads: true,
@@ -601,6 +607,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionFeatures> 
     tier: 'family',
     name: 'Family',
     price: 14.99,
+    yearlyPrice: 149.90,
     features: {
       adFree: true,
       offlineDownloads: true,

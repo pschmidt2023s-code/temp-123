@@ -2335,6 +2335,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== PHASE 1: GIFT CARDS ==========
   
+  app.post('/api/gift-cards/purchase', validateCsrfToken, async (req, res) => {
+    try {
+      const { tier, durationMonths, recipientEmail, userId } = req.body;
+      if (!tier || !durationMonths || !recipientEmail) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const code = randomBytes(8).toString('hex').toUpperCase();
+      const tierData = SUBSCRIPTION_TIERS[tier as SubscriptionTier];
+      const amount = durationMonths === 1 ? tierData.price * 100 : tierData.yearlyPrice * 100;
+
+      const giftCard = await storage.createGiftCard({
+        code,
+        tier,
+        durationMonths,
+        purchasedBy: userId,
+        recipientEmail,
+        amount: Math.round(amount),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+      });
+
+      const redeemLink = `${req.protocol}://${req.get('host')}/redeem-gift?code=${code}`;
+
+      res.json({
+        code: giftCard.code,
+        link: redeemLink,
+      });
+    } catch (error: any) {
+      console.error('Gift card purchase error:', error);
+      res.status(500).json({ error: error.message || 'Failed to purchase gift card' });
+    }
+  });
+
   app.post('/api/gift-cards/redeem', validateCsrfToken, async (req, res) => {
     try {
       const { code, userId } = req.body;
