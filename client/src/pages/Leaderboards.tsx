@@ -12,33 +12,31 @@ const PERIODS = [
   { value: 'all_time', label: 'Alle Zeit' },
 ];
 
-const DEMO_ARTISTS = [
-  { id: 'artist-1', name: 'Taylor Swift' },
-  { id: 'artist-2', name: 'The Weeknd' },
-  { id: 'artist-3', name: 'Ed Sheeran' },
-  { id: 'artist-4', name: 'Billie Eilish' },
-  { id: 'artist-5', name: 'Drake' },
-];
-
 export default function Leaderboards() {
-  const [selectedArtist, setSelectedArtist] = useState(DEMO_ARTISTS[0]);
+  const [selectedArtist, setSelectedArtist] = useState<{ id: string; name: string } | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('all_time');
   const [searchQuery, setSearchQuery] = useState('');
-  const userId = 'demo-user';
+  const userId = 'user-1';
+
+  const { data: artists = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['/api/artists'],
+  });
 
   const { data: leaderboards = [] } = useQuery<any[]>({
-    queryKey: ['/api/leaderboards', selectedArtist.id, { period: selectedPeriod }],
+    queryKey: ['/api/leaderboards', selectedArtist?.id, { period: selectedPeriod }],
+    enabled: !!selectedArtist,
   });
 
   const { data: userPosition } = useQuery<any>({
-    queryKey: ['/api/leaderboards', selectedArtist.id, 'user', userId, { period: selectedPeriod }],
+    queryKey: ['/api/leaderboards', selectedArtist?.id, 'user', userId, { period: selectedPeriod }],
+    enabled: !!selectedArtist,
   });
 
   const { data: achievements = [] } = useQuery<any[]>({
     queryKey: ['/api/users', userId, 'achievements'],
   });
 
-  const filteredArtists = DEMO_ARTISTS.filter(artist =>
+  const filteredArtists = artists.filter(artist =>
     artist.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

@@ -11,18 +11,18 @@ import { usePlayer } from '@/store/usePlayer';
 import { musicKit } from '@/lib/musickit';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getFeatureAccess } from '@/lib/subscription-features';
-
-const DEMO_USER_ID = 'demo-user';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LiveRooms() {
-  const { subscription } = useSubscription(DEMO_USER_ID);
+  const { user } = useAuth();
+  const { subscription } = useSubscription(user?.id || '');
   const features = getFeatureAccess(subscription?.tier || null);
   const hasAccess = features.liveRooms;
   const [roomId, setRoomId] = useState<string | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [chatInput, setChatInput] = useState('');
-  const [userId] = useState('demo-user-' + Math.random().toString(36).substr(2, 9));
-  const [username] = useState('User-' + Math.random().toString(36).substr(2, 5));
+  const [userId] = useState(user?.id || 'guest-' + Math.random().toString(36).substr(2, 9));
+  const [username] = useState(user?.username || 'Gast-' + Math.random().toString(36).substr(2, 5));
 
   const { isConnected, roomState, messages, sendMessage, playTrack, pause } = useLiveRoom(
     roomId,

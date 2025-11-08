@@ -6,89 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { GameController, Play, Trophy, Users, ArrowLeft } from '@phosphor-icons/react';
-
-const DEMO_QUIZZES = [
-  {
-    id: 'quiz-1',
-    title: 'Rate den Song',
-    description: 'Erkenne 10 beliebte Songs anhand der ersten 3 Sekunden!',
-    tracks: ['track-1', 'track-2', 'track-3', 'track-4', 'track-5', 'track-6', 'track-7', 'track-8', 'track-9', 'track-10'],
-    playCount: 1234,
-    mode: 'guess_song',
-  },
-  {
-    id: 'quiz-2',
-    title: 'Künstler-Challenge',
-    description: 'Welcher Künstler hat diese Songs gemacht?',
-    tracks: ['track-11', 'track-12', 'track-13', 'track-14', 'track-15'],
-    playCount: 892,
-    mode: 'guess_artist',
-  },
-  {
-    id: 'quiz-3',
-    title: '90er Hits',
-    description: 'Die besten Songs der 90er Jahre - kannst du sie alle erkennen?',
-    tracks: ['track-16', 'track-17', 'track-18', 'track-19', 'track-20'],
-    playCount: 2145,
-    mode: 'guess_song',
-  },
-  {
-    id: 'quiz-4',
-    title: 'Rock Classics',
-    description: 'Legendäre Rock-Songs von Queen, Led Zeppelin und mehr!',
-    tracks: ['track-21', 'track-22', 'track-23', 'track-24', 'track-25'],
-    playCount: 567,
-    mode: 'guess_song',
-  },
-];
-
-const DEMO_QUESTIONS = [
-  {
-    question: 'Wer singt diesen Song?',
-    options: ['Taylor Swift', 'Ariana Grande', 'Billie Eilish', 'Dua Lipa'],
-    correctIndex: 2,
-  },
-  {
-    question: 'Wie heißt dieser Song?',
-    options: ['Blinding Lights', 'Starboy', 'Save Your Tears', 'The Hills'],
-    correctIndex: 0,
-  },
-  {
-    question: 'Aus welchem Jahr ist dieser Song?',
-    options: ['2018', '2019', '2020', '2021'],
-    correctIndex: 2,
-  },
-  {
-    question: 'Wer ist der Künstler?',
-    options: ['Drake', 'Kendrick Lamar', 'J. Cole', 'Travis Scott'],
-    correctIndex: 1,
-  },
-  {
-    question: 'Welches Album ist das?',
-    options: ['After Hours', 'Beauty Behind the Madness', 'Starboy', 'Dawn FM'],
-    correctIndex: 0,
-  },
-];
+import { useAuth } from '@/hooks/useAuth';
 
 export default function MusicQuizzes() {
   const { toast } = useToast();
-  const userId = 'demo-user';
+  const { user } = useAuth();
+  const userId = user?.id || '';
   
-  const [selectedQuiz, setSelectedQuiz] = useState<typeof DEMO_QUIZZES[0] | null>(null);
+  const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
 
-  const { data: quizzes } = useQuery({
+  const { data: quizzes = [] } = useQuery({
     queryKey: ['/api/quizzes'],
-    queryFn: async () => {
-      const res = await fetch('/api/quizzes');
-      if (!res.ok) return DEMO_QUIZZES;
-      const data = await res.json();
-      return data.length > 0 ? data : DEMO_QUIZZES;
-    },
   });
 
   const { data: selectedQuizData, isLoading: quizLoading, isError: quizError } = useQuery({
@@ -125,7 +58,7 @@ export default function MusicQuizzes() {
     },
   });
 
-  const handleStartQuiz = (quiz: typeof DEMO_QUIZZES[0]) => {
+  const handleStartQuiz = (quiz: any) => {
     setSelectedQuiz(quiz);
     setCurrentQuestionIndex(0);
     setScore(0);
@@ -142,7 +75,7 @@ export default function MusicQuizzes() {
       ? (typeof selectedQuizData.questions === 'string' 
         ? JSON.parse(selectedQuizData.questions) 
         : selectedQuizData.questions) 
-      : DEMO_QUESTIONS;
+      : [];
     
     setSelectedAnswer(answerIndex);
     const currentQuestion = questions[currentQuestionIndex];
@@ -162,7 +95,7 @@ export default function MusicQuizzes() {
       ? (typeof selectedQuizData.questions === 'string' 
         ? JSON.parse(selectedQuizData.questions) 
         : selectedQuizData.questions) 
-      : DEMO_QUESTIONS;
+      : [];
     
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -195,7 +128,7 @@ export default function MusicQuizzes() {
       ? (typeof selectedQuizData.questions === 'string' 
         ? JSON.parse(selectedQuizData.questions) 
         : selectedQuizData.questions) 
-      : DEMO_QUESTIONS;
+      : [];
     
     const percentage = Math.round((score / questions.length) * 100);
     return (
@@ -301,7 +234,7 @@ export default function MusicQuizzes() {
       ? (typeof selectedQuizData.questions === 'string' 
         ? JSON.parse(selectedQuizData.questions) 
         : selectedQuizData.questions) 
-      : DEMO_QUESTIONS;
+      : [];
     
     const currentQuestion = questions[currentQuestionIndex];
     const isCorrect = selectedAnswer === currentQuestion.correctIndex;
@@ -416,7 +349,7 @@ export default function MusicQuizzes() {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(quizzes || DEMO_QUIZZES).map((quiz: any) => (
+        {quizzes.map((quiz: any) => (
           <Card
             key={quiz.id}
             className="p-6 hover-elevate cursor-pointer"
