@@ -35,12 +35,12 @@ export default function Dashboard() {
     },
   });
 
-  const totalMinutes = stats.reduce((sum, s) => sum + s.totalMinutes, 0);
-  const totalPlays = stats.reduce((sum, s) => sum + s.playCount, 0);
+  const totalMinutes = stats.reduce((sum, s) => sum + (s.totalMinutes || 0), 0);
+  const totalPlays = stats.reduce((sum, s) => sum + (s.playCount || 0), 0);
   const uniqueArtists = new Set(stats.map(s => s.artistName)).size;
 
   const shareAchievement = (achievement: Achievement) => {
-    const text = `Ich habe ${achievement.milestone} ${achievement.type === 'minutes_listened' ? 'Minuten' : 'Songs'} auf GlassBeats gehört! 🎵`;
+    const text = `Ich habe ein Achievement auf GlassBeats freigeschaltet: ${achievement.title} 🎵`;
     const url = `https://www.instagram.com/`;
     
     // Create shareable text
@@ -154,7 +154,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-medium">
-                      {Math.floor(artist.totalMinutes / 60)}h {artist.totalMinutes % 60}m
+                      {Math.floor((artist.totalMinutes || 0) / 60)}h {(artist.totalMinutes || 0) % 60}m
                     </div>
                   </div>
                 </div>
@@ -192,15 +192,11 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">
-                        {achievement.milestone.toLocaleString()}{' '}
-                        {achievement.type === 'minutes_listened' ? 'Minuten' : 'Songs'}
+                        {achievement.title}
                       </h3>
-                      {achievement.isShared && (
-                        <Badge variant="secondary" className="text-xs">Geteilt</Badge>
-                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Freigeschaltet am {new Date(achievement.unlockedAt).toLocaleDateString('de-DE')}
+                      {achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleDateString('de-DE') : 'Kürzlich'}
                     </p>
                     <Button
                       size="sm"

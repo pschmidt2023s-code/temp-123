@@ -734,7 +734,7 @@ export type SleepTimer = typeof sleepTimers.$inferSelect;
 export type InsertSleepTimer = z.infer<typeof insertSleepTimerSchema>;
 
 // Monetization
-export const insertGiftCardSchema = createInsertSchema(giftCards).omit({ id: true, createdAt: true, isRedeemed: true });
+export const insertGiftCardSchema = createInsertSchema(giftCards).omit({ id: true, isRedeemed: true });
 export const insertReferralSchema = createInsertSchema(referrals).omit({ id: true, createdAt: true });
 export const insertStudentDiscountSchema = createInsertSchema(studentDiscounts).omit({ id: true, createdAt: true, isVerified: true });
 

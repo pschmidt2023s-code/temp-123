@@ -7,7 +7,7 @@ interface Room {
   name: string;
   creatorId: string;
   participants: Map<string, Participant>;
-  currentTrack: MKMediaItem | null;
+  currentTrack: MKMediaItem | undefined;
   queue: MKMediaItem[];
   isPlaying: boolean;
   currentTime: number;
@@ -107,7 +107,7 @@ function handleJoinRoom(ws: WebSocket, msg: RoomMessage) {
       name: `${username}'s Room`,
       creatorId: userId,
       participants: new Map(),
-      currentTrack: null,
+      currentTrack: undefined,
       queue: [],
       isPlaying: false,
       currentTime: 0,
@@ -189,7 +189,7 @@ function handlePlayTrack(ws: WebSocket, msg: RoomMessage) {
   if (!room) return;
 
   if (track) {
-    room.currentTrack = track;
+    room.currentTrack = track || undefined;
   }
   room.isPlaying = true;
   room.currentTime = currentTime || 0;

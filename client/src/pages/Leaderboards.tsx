@@ -128,7 +128,7 @@ export default function Leaderboards() {
               {filteredArtists.map((artist) => (
                 <Button
                   key={artist.id}
-                  variant={selectedArtist.id === artist.id ? 'default' : 'ghost'}
+                  variant={selectedArtist?.id === artist.id ? 'default' : 'ghost'}
                   className="w-full justify-start"
                   onClick={() => setSelectedArtist(artist)}
                   data-testid={`button-artist-${artist.id}`}
@@ -146,7 +146,7 @@ export default function Leaderboards() {
           <Card className="p-6">
             {/* Period Selection */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">{selectedArtist.name}</h2>
+              <h2 className="text-2xl font-bold">{selectedArtist?.name || 'Künstler'}</h2>
               <div className="flex gap-2">
                 {PERIODS.map((period) => (
                   <Button
@@ -186,7 +186,7 @@ export default function Leaderboards() {
                 <div className="text-center py-12 text-muted-foreground" data-testid="text-no-data">
                   <Trophy size={48} className="mx-auto mb-4 opacity-50" />
                   <p>Noch keine Daten für diesen Künstler.</p>
-                  <p className="text-sm mt-2">Höre Songs von {selectedArtist.name} um auf dem Leaderboard zu erscheinen!</p>
+                  <p className="text-sm mt-2">Höre Songs von {selectedArtist?.name || 'diesem Künstler'} um auf dem Leaderboard zu erscheinen!</p>
                 </div>
               ) : (
                 leaderboards.map((entry: any) => {
