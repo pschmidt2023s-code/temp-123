@@ -14,7 +14,8 @@ import {
   type Lyrics, type InsertLyrics,
   type StreamingEvent, type InsertStreamingEvent,
   type Coupon, type InsertCoupon,
-  type CouponUsage, type InsertCouponUsage
+  type CouponUsage, type InsertCouponUsage,
+  type MusicQuiz, type InsertMusicQuiz
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -165,6 +166,15 @@ export interface IStorage {
   createGeneratedPlaylist(data: any): Promise<any>;
   deleteGeneratedPlaylist(id: string): Promise<boolean>;
   refreshGeneratedPlaylist(id: string): Promise<any>;
+
+  // ========== PHASE 2.4: MUSIC QUIZZES ==========
+  getAllQuizzes(): Promise<MusicQuiz[]>;
+  getQuiz(id: string): Promise<MusicQuiz | undefined>;
+  createQuiz(quiz: InsertMusicQuiz): Promise<MusicQuiz>;
+  incrementQuizPlayCount(id: string): Promise<void>;
+  submitQuizScore(quizId: string, userId: string, score: number, maxScore: number): Promise<any>;
+  getQuizScores(quizId: string): Promise<any[]>;
+  getUserQuizScores(userId: string): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -588,6 +598,35 @@ export class MemStorage implements IStorage {
   async refreshGeneratedPlaylist(id: string): Promise<any> {
     throw new Error('AI Playlists not implemented in MemStorage');
   }
+
+  // ========== PHASE 2.4: MUSIC QUIZZES STUBS ==========
+  async getAllQuizzes(): Promise<MusicQuiz[]> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async getQuiz(id: string): Promise<MusicQuiz | undefined> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async createQuiz(quiz: InsertMusicQuiz): Promise<MusicQuiz> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async incrementQuizPlayCount(id: string): Promise<void> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async submitQuizScore(quizId: string, userId: string, score: number, maxScore: number): Promise<any> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async getQuizScores(quizId: string): Promise<any[]> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
+
+  async getUserQuizScores(userId: string): Promise<any[]> {
+    throw new Error('Music Quizzes not implemented in MemStorage');
+  }
 }
 
 import { db } from './db';
@@ -617,6 +656,8 @@ import {
   referrals,
   friends,
   friendActivity,
+  musicQuizzes,
+  quizScores,
   generatedPlaylists
 } from '@shared/schema';
 
@@ -1517,6 +1558,56 @@ class DbStorage implements IStorage {
       .returning();
     
     return result[0];
+  }
+
+  // ========== PHASE 2.4: MUSIC QUIZZES ==========
+  async getAllQuizzes(): Promise<MusicQuiz[]> {
+    const quizzes = await db.select().from(musicQuizzes).orderBy(desc(musicQuizzes.createdAt));
+    return quizzes;
+  }
+
+  async getQuiz(id: string): Promise<MusicQuiz | undefined> {
+    const result = await db.select().from(musicQuizzes)
+      .where(eq(musicQuizzes.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createQuiz(quiz: InsertMusicQuiz): Promise<MusicQuiz> {
+    const result = await db.insert(musicQuizzes).values(quiz).returning();
+    return result[0];
+  }
+
+  async incrementQuizPlayCount(id: string): Promise<void> {
+    await db.update(musicQuizzes)
+      .set({ playCount: sql`${musicQuizzes.playCount} + 1` })
+      .where(eq(musicQuizzes.id, id));
+  }
+
+  async submitQuizScore(quizId: string, userId: string, score: number, maxScore: number): Promise<any> {
+    const result = await db.insert(quizScores).values({
+      quizId,
+      userId,
+      score,
+      maxScore,
+    }).returning();
+    return result[0];
+  }
+
+  async getQuizScores(quizId: string): Promise<any[]> {
+    const scores = await db.select()
+      .from(quizScores)
+      .where(eq(quizScores.quizId, quizId))
+      .orderBy(desc(quizScores.score));
+    return scores;
+  }
+
+  async getUserQuizScores(userId: string): Promise<any[]> {
+    const scores = await db.select()
+      .from(quizScores)
+      .where(eq(quizScores.userId, userId))
+      .orderBy(desc(quizScores.completedAt));
+    return scores;
   }
 }
 

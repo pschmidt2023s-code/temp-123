@@ -31,6 +31,7 @@ import Rewards from "@/pages/Rewards";
 import Friends from "@/pages/Friends";
 import AIPlaylists from "@/pages/AIPlaylists";
 import Karaoke from "@/pages/Karaoke";
+import MusicQuizzes from "@/pages/MusicQuizzes";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
@@ -67,6 +68,7 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/friends" component={Friends} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/ai-playlists" component={AIPlaylists} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/karaoke" component={Karaoke} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/quizzes" component={MusicQuizzes} />}
       <Route component={NotFound} />
     </Switch>
   );

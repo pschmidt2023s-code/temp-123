@@ -310,6 +310,7 @@ export const musicQuizzes = pgTable("music_quizzes", {
   title: text("title").notNull(),
   description: text("description"),
   tracks: text("tracks").array().notNull(), // Array of track IDs
+  questions: text("questions"), // JSON: [{question, options[], correctIndex}]
   createdAt: timestamp("created_at").defaultNow(),
   playCount: integer("play_count").default(0),
 });

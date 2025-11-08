@@ -21,6 +21,7 @@ import {
   insertOfflineDownloadSchema,
   insertGeneratedPlaylistSchema,
   insertFriendActivitySchema,
+  insertMusicQuizSchema,
   SUBSCRIPTION_TIERS 
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
@@ -1815,6 +1816,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message === 'Playlist not found') {
         return res.status(404).json({ error: 'Playlist not found' });
       }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ========== MUSIC QUIZZES ROUTES ==========
+  
+  // Get all quizzes
+  app.get('/api/quizzes', async (req, res) => {
+    try {
+      const quizzes = await storage.getAllQuizzes();
+      res.json(quizzes);
+    } catch (error) {
+      console.error('Get quizzes error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get single quiz
+  app.get('/api/quizzes/:id', async (req, res) => {
+    try {
+      const quiz = await storage.getQuiz(req.params.id);
+      if (!quiz) {
+        return res.status(404).json({ error: 'Quiz not found' });
+      }
+      res.json(quiz);
+    } catch (error) {
+      console.error('Get quiz error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Create quiz
+  app.post('/api/quizzes', async (req, res) => {
+    try {
+      const result = insertMusicQuizSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid quiz data', details: result.error });
+      }
+      const quiz = await storage.createQuiz(result.data);
+      res.status(201).json(quiz);
+    } catch (error) {
+      console.error('Create quiz error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Increment quiz play count
+  app.post('/api/quizzes/:id/play', async (req, res) => {
+    try {
+      await storage.incrementQuizPlayCount(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Increment quiz play count error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Submit quiz score
+  app.post('/api/quizzes/:id/scores', async (req, res) => {
+    try {
+      const { userId, score, maxScore } = req.body;
+      if (!userId || typeof score !== 'number' || typeof maxScore !== 'number') {
+        return res.status(400).json({ error: 'Missing required fields: userId, score, maxScore' });
+      }
+      const result = await storage.submitQuizScore(req.params.id, userId, score, maxScore);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Submit quiz score error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get quiz scores (leaderboard)
+  app.get('/api/quizzes/:id/scores', async (req, res) => {
+    try {
+      const scores = await storage.getQuizScores(req.params.id);
+      res.json(scores);
+    } catch (error) {
+      console.error('Get quiz scores error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get user quiz scores
+  app.get('/api/users/:userId/quiz-scores', async (req, res) => {
+    try {
+      const scores = await storage.getUserQuizScores(req.params.userId);
+      res.json(scores);
+    } catch (error) {
+      console.error('Get user quiz scores error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
