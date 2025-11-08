@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { GameController, Play, Trophy, Users, ArrowLeft } from '@phosphor-icons/react';
-import { useAuth } from '@/hooks/useAuth';
+
+const DEMO_USER_ID = 'demo-user';
 
 export default function MusicQuizzes() {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const userId = user?.id || '';
+  const userId = DEMO_USER_ID;
   
   const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
