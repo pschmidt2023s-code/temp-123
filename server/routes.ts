@@ -1141,7 +1141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check admin session validity
-  app.get('/api/admin/check-session', requireAdminAuthWithCsrf, async (req, res) => {
+  app.get('/api/admin/check-session', requireAdminAuth, async (req, res) => {
     res.json({ success: true, authenticated: true });
   });
 
@@ -2178,15 +2178,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PayPal Payment Routes (Referenced from blueprint:javascript_paypal)
-  app.get("/paypal/setup", async (req, res) => {
+  app.get("/api/paypal/setup", async (req, res) => {
     await loadPaypalDefault(req, res);
   });
 
-  app.post("/paypal/order", async (req, res) => {
+  app.post("/api/paypal/create-order", paymentLimiter, validateCsrfToken, async (req, res) => {
     await createPaypalOrder(req, res);
   });
 
-  app.post("/paypal/order/:orderID/capture", async (req, res) => {
+  app.post("/api/paypal/order/:orderID/capture", async (req, res) => {
     await capturePaypalOrder(req, res);
   });
 
