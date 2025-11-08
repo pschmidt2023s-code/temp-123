@@ -64,30 +64,30 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="releases" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="releases" data-testid="tab-releases">
-              <MusicNotes size={20} weight="bold" className="mr-2" />
-              Releases
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 h-auto md:h-14 p-1 gap-1 md:gap-0">
+            <TabsTrigger value="releases" data-testid="tab-releases" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <MusicNotes size={18} weight="bold" />
+              <span className="hidden lg:inline">Releases</span>
             </TabsTrigger>
-            <TabsTrigger value="lyrics" data-testid="tab-lyrics">
-              <Quotes size={20} weight="bold" className="mr-2" />
-              Lyrics
+            <TabsTrigger value="lyrics" data-testid="tab-lyrics" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <Quotes size={18} weight="bold" />
+              <span className="hidden lg:inline">Lyrics</span>
             </TabsTrigger>
-            <TabsTrigger value="coupons" data-testid="tab-coupons">
-              <Ticket size={20} weight="bold" className="mr-2" />
-              Gutscheine
+            <TabsTrigger value="coupons" data-testid="tab-coupons" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <Ticket size={18} weight="bold" />
+              <span className="hidden lg:inline">Gutscheine</span>
             </TabsTrigger>
-            <TabsTrigger value="artists" data-testid="tab-artists">
-              <LinkIcon size={20} weight="bold" className="mr-2" />
-              Künstler-Links
+            <TabsTrigger value="artists" data-testid="tab-artists" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <LinkIcon size={18} weight="bold" />
+              <span className="hidden lg:inline">Künstler</span>
             </TabsTrigger>
-            <TabsTrigger value="services" data-testid="tab-services">
-              <Cloud size={20} weight="bold" className="mr-2" />
-              Services
+            <TabsTrigger value="services" data-testid="tab-services" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <Cloud size={18} weight="bold" />
+              <span className="hidden lg:inline">Services</span>
             </TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users">
-              <Users size={20} weight="bold" className="mr-2" />
-              Benutzer
+            <TabsTrigger value="users" data-testid="tab-users" className="flex items-center justify-center gap-1.5 h-12 md:h-full text-sm md:text-base font-semibold">
+              <Users size={18} weight="bold" />
+              <span className="hidden lg:inline">Benutzer</span>
             </TabsTrigger>
           </TabsList>
 

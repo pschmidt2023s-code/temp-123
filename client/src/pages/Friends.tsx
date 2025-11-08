@@ -149,14 +149,15 @@ export default function Friends() {
       </div>
 
       <Tabs defaultValue="friends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="friends" data-testid="tab-friends">
-            Meine Freunde ({friends.length})
+        <TabsList className="grid w-full grid-cols-3 h-14 p-1">
+          <TabsTrigger value="friends" data-testid="tab-friends" className="flex items-center justify-center h-full text-sm md:text-base font-semibold">
+            <span className="hidden sm:inline">Meine Freunde ({friends.length})</span>
+            <span className="sm:hidden">Freunde ({friends.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" data-testid="tab-requests">
+          <TabsTrigger value="requests" data-testid="tab-requests" className="flex items-center justify-center h-full text-sm md:text-base font-semibold">
             Anfragen ({pendingRequests.length})
           </TabsTrigger>
-          <TabsTrigger value="activity" data-testid="tab-activity">
+          <TabsTrigger value="activity" data-testid="tab-activity" className="flex items-center justify-center h-full text-sm md:text-base font-semibold">
             Aktivitäten
           </TabsTrigger>
         </TabsList>

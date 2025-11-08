@@ -97,14 +97,15 @@ export default function Rewards() {
       </div>
 
       <Tabs defaultValue="giftcards" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="giftcards" data-testid="tab-giftcards">
-            <Gift size={20} weight="bold" className="mr-2" />
+        <TabsList className="grid w-full grid-cols-2 h-14 p-1">
+          <TabsTrigger value="giftcards" data-testid="tab-giftcards" className="flex items-center justify-center gap-2 h-full text-base font-semibold">
+            <Gift size={20} weight="bold" />
             Gutscheine
           </TabsTrigger>
-          <TabsTrigger value="referral" data-testid="tab-referral">
-            <ShareNetwork size={20} weight="bold" className="mr-2" />
-            Freunde werben
+          <TabsTrigger value="referral" data-testid="tab-referral" className="flex items-center justify-center gap-2 h-full text-base font-semibold">
+            <ShareNetwork size={20} weight="bold" />
+            <span className="hidden sm:inline">Freunde werben</span>
+            <span className="sm:hidden">Werben</span>
           </TabsTrigger>
         </TabsList>
 

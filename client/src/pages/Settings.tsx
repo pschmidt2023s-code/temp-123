@@ -179,18 +179,18 @@ export default function Settings() {
       <h1 className="text-heading font-bold mb-6 text-center md:text-left" data-testid="text-settings-title">Einstellungen</h1>
 
       <Tabs defaultValue="audio" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="audio" data-testid="tab-audio" className="flex flex-col md:flex-row items-center justify-center gap-1 py-2">
-            <SpeakerHigh size={18} weight="bold" />
-            <span className="text-xs md:text-sm">Audio</span>
+        <TabsList className="grid w-full grid-cols-3 h-14 p-1">
+          <TabsTrigger value="audio" data-testid="tab-audio" className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 h-full">
+            <SpeakerHigh size={20} weight="bold" />
+            <span className="text-xs md:text-base font-semibold">Audio</span>
           </TabsTrigger>
-          <TabsTrigger value="streaming" data-testid="tab-streaming" className="flex flex-col md:flex-row items-center justify-center gap-1 py-2">
-            <WifiHigh size={18} weight="bold" />
-            <span className="text-xs md:text-sm">Streaming</span>
+          <TabsTrigger value="streaming" data-testid="tab-streaming" className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 h-full">
+            <WifiHigh size={20} weight="bold" />
+            <span className="text-xs md:text-base font-semibold">Streaming</span>
           </TabsTrigger>
-          <TabsTrigger value="security" data-testid="tab-security" className="flex flex-col md:flex-row items-center justify-center gap-1 py-2">
-            <Shield size={18} weight="bold" />
-            <span className="text-xs md:text-sm">Sicherheit</span>
+          <TabsTrigger value="security" data-testid="tab-security" className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 h-full">
+            <Shield size={20} weight="bold" />
+            <span className="text-xs md:text-base font-semibold">Sicherheit</span>
           </TabsTrigger>
         </TabsList>
 

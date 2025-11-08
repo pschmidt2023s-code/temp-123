@@ -97,17 +97,18 @@ export default function ArtistPortal() {
         </div>
 
         <Tabs defaultValue="releases" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="releases" data-testid="tab-releases">
-              <MusicNotes size={20} weight="bold" className="mr-2" />
-              Meine Releases
+          <TabsList className="grid w-full grid-cols-3 h-14 p-1">
+            <TabsTrigger value="releases" data-testid="tab-releases" className="flex items-center justify-center gap-2 h-full text-base font-semibold">
+              <MusicNotes size={20} weight="bold" />
+              <span className="hidden sm:inline">Meine Releases</span>
+              <span className="sm:hidden">Releases</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" data-testid="tab-analytics">
-              <ChartLine size={20} weight="bold" className="mr-2" />
+            <TabsTrigger value="analytics" data-testid="tab-analytics" className="flex items-center justify-center gap-2 h-full text-base font-semibold">
+              <ChartLine size={20} weight="bold" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="profile" data-testid="tab-profile">
-              <User size={20} weight="bold" className="mr-2" />
+            <TabsTrigger value="profile" data-testid="tab-profile" className="flex items-center justify-center gap-2 h-full text-base font-semibold">
+              <User size={20} weight="bold" />
               Profil
             </TabsTrigger>
           </TabsList>
