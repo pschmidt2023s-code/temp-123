@@ -2384,6 +2384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const downloads = await storage.getUserDownloads(req.params.userId);
       res.json(downloads);
     } catch (error) {
+      console.error('[DOWNLOADS] GET error:', error);
       res.status(500).json({ error: 'Failed to fetch downloads' });
     }
   });
@@ -2397,6 +2398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: 'Invalid download data', details: error.errors });
       }
+      console.error('[DOWNLOADS] POST error:', error);
       res.status(500).json({ error: 'Failed to create download' });
     }
   });
@@ -2406,6 +2408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = await storage.deleteDownload(req.params.id);
       res.json({ success });
     } catch (error) {
+      console.error('[DOWNLOADS] DELETE error:', error);
       res.status(500).json({ error: 'Failed to delete download' });
     }
   });
@@ -2415,6 +2418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalBytes = await storage.getUserStorageUsage(req.params.userId);
       res.json({ totalBytes, totalMB: Math.round(totalBytes / 1024 / 1024) });
     } catch (error) {
+      console.error('[DOWNLOADS] GET storage error:', error);
       res.status(500).json({ error: 'Failed to fetch storage usage' });
     }
   });

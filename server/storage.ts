@@ -15,7 +15,8 @@ import {
   type StreamingEvent, type InsertStreamingEvent,
   type Coupon, type InsertCoupon,
   type CouponUsage, type InsertCouponUsage,
-  type MusicQuiz, type InsertMusicQuiz
+  type MusicQuiz, type InsertMusicQuiz,
+  type OfflineDownload, type InsertOfflineDownload
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -694,7 +695,8 @@ import {
   friendActivity,
   musicQuizzes,
   quizScores,
-  generatedPlaylists
+  generatedPlaylists,
+  offlineDownloads
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
