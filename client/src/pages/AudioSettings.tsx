@@ -91,15 +91,15 @@ export default function AudioSettings() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="flex items-center justify-center md:justify-start gap-3 mb-8">
         <Equalizer size={32} weight="bold" className="text-primary" />
-        <h1 className="text-3xl font-bold" data-testid="heading-audio-settings">Audio-Einstellungen</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-center md:text-left" data-testid="heading-audio-settings">Audio-Einstellungen</h1>
       </div>
 
       <div className="space-y-6">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4" data-testid="heading-equalizer">Equalizer</h2>
+        <Card className="p-4 md:p-6">
+          <h2 className="text-lg font-semibold mb-4 text-center md:text-left" data-testid="heading-equalizer">Equalizer</h2>
           <div className="space-y-4">
             <div>
               <Label htmlFor="eq-preset">EQ-Voreinstellung</Label>
@@ -120,6 +120,43 @@ export default function AudioSettings() {
             {eqPreset === 'custom' ? (
               <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-4">Passe jeden Frequenzbereich individuell an</p>
+                
+                {/* Grafischer Equalizer */}
+                <div className="mb-6 p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-end justify-around gap-2 h-48">
+                    {EQ_BANDS.map((band, index) => {
+                      const value = eqBands[index];
+                      const percentage = ((value + 12) / 24) * 100; // -12 to +12 mapped to 0-100%
+                      
+                      return (
+                        <div key={band} className="flex flex-col items-center gap-2 flex-1">
+                          <div className="relative w-full h-full flex flex-col justify-end">
+                            <div 
+                              className="w-full bg-gradient-to-t from-primary via-primary/80 to-primary/60 rounded-t-sm transition-all duration-200 relative"
+                              style={{ 
+                                height: `${percentage}%`,
+                                minHeight: '4px',
+                                boxShadow: '0 0 10px rgba(29, 185, 84, 0.3)'
+                              }}
+                            >
+                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-primary whitespace-nowrap">
+                                {value > 0 ? '+' : ''}{value}dB
+                              </div>
+                            </div>
+                            {/* Center line at 0dB */}
+                            <div 
+                              className="absolute w-full border-t border-muted-foreground/30"
+                              style={{ bottom: '50%' }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground">{band}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Sliders */}
                 {EQ_BANDS.map((band, index) => (
                   <div key={band} className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -155,8 +192,8 @@ export default function AudioSettings() {
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4" data-testid="heading-playback">Wiedergabe</h2>
+        <Card className="p-4 md:p-6">
+          <h2 className="text-lg font-semibold mb-4 text-center md:text-left" data-testid="heading-playback">Wiedergabe</h2>
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
