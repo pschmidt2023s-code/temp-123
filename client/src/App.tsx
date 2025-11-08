@@ -36,6 +36,8 @@ import NotFound from "@/pages/not-found";
 import Leaderboards from '@/pages/Leaderboards';
 import Downloads from '@/pages/Downloads';
 import RadioStations from '@/pages/RadioStations';
+import CarMode from '@/pages/CarMode';
+import VoiceCommands from '@/pages/VoiceCommands';
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
 import { useLocation } from "wouter";
@@ -75,6 +77,8 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/leaderboards" component={Leaderboards} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/downloads" component={Downloads} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/radio" component={RadioStations} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/car-mode" component={CarMode} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/voice" component={VoiceCommands} />}
       <Route component={NotFound} />
     </Switch>
   );
