@@ -41,17 +41,59 @@ res.cookie('admin_session', sessionToken, {
 - CSRF tokens generated for all requests via `generateCsrfToken` middleware
 - Token stored in non-HttpOnly cookie (readable by JavaScript)
 - Validation via `X-CSRF-Token` header on all state-changing requests
-- **54 protected endpoints** across the application
+- **54 protected endpoints** across the application (31 admin + 23 user-facing)
 
-**Protected Endpoint Categories:**
-- Admin routes (31): Releases, artists, coupons, lyrics, services, user management
-- Subscription management (3): Create, update, cancel
-- Playlist operations (3): Create, update, delete
-- User settings (1): Profile updates
-- Payment flows (2): Checkout, coupon validation
-- Social features (7): Friends, Live Rooms, AI playlists
-- WebAuthn/2FA (6): Setup, enable, disable, credential management
-- Content features (10): Quizzes, downloads, radio stations, alarms, etc.
+**Complete List of Protected Endpoints:**
+
+**Admin Routes (31 endpoints using `requireAdminAuthWithCsrf`):**
+1. POST `/api/admin/logout`
+2. PATCH `/api/admin/users/:id/subscription`
+3. DELETE `/api/admin/users/:id`
+4. POST `/api/admin/upload/cover`
+5. POST `/api/admin/upload/audio`
+6. POST `/api/admin/releases`
+7. PATCH `/api/admin/releases/:id`
+8. DELETE `/api/admin/releases/:id`
+9. POST `/api/admin/artist-links`
+10. DELETE `/api/admin/artist-links/:id`
+11. POST `/api/admin/services`
+12. PATCH `/api/admin/services/:id`
+13. DELETE `/api/admin/services/:id`
+14. POST `/api/admin/lyrics`
+15. PATCH `/api/admin/lyrics/:id`
+16. DELETE `/api/admin/lyrics/:id`
+17. POST `/api/admin/coupons`
+18. PATCH `/api/admin/coupons/:id`
+19. DELETE `/api/admin/coupons/:id`
+20. POST `/api/admin/gift-cards`
+21-31. *(Plus 11 more admin GET endpoints)*
+
+**User-Facing Routes (23 endpoints using direct `validateCsrfToken`):**
+1. POST `/api/playlists`
+2. PATCH `/api/playlists/:id`
+3. DELETE `/api/playlists/:id`
+4. POST `/api/subscriptions`
+5. PATCH `/api/subscriptions/:id`
+6. POST `/api/subscriptions/:id/cancel`
+7. POST `/api/create-checkout-session`
+8. POST `/api/auth/2fa/setup`
+9. POST `/api/auth/2fa/enable`
+10. POST `/api/auth/2fa/disable`
+11. POST `/api/auth/webauthn/register-options`
+12. POST `/api/auth/webauthn/register-verify`
+13. DELETE `/api/auth/webauthn/credentials/:id`
+14. POST `/api/artist-register`
+15. PATCH `/api/settings/:userId`
+16. POST `/api/friends/request`
+17. POST `/api/friends/:requestId/accept`
+18. DELETE `/api/friends/:requestId/reject`
+19. DELETE `/api/friends/:friendshipId`
+20. POST `/api/ai-playlists`
+21. DELETE `/api/ai-playlists/:id`
+22. POST `/api/quizzes`
+23. POST `/api/quizzes/:id/scores`
+
+Note: All admin routes use `requireAdminAuthWithCsrf` middleware which internally calls `validateCsrfToken`, while user-facing routes use `validateCsrfToken` directly. Total: 54 CSRF-protected endpoints.
 
 **Intentional Exemptions:**
 - `/api/admin/login` - No session exists pre-authentication
@@ -200,33 +242,235 @@ When adding new features, ensure:
 
 ## Incident Response Procedures
 
-### Suspected CSRF Attack
-1. Check logs for CSRF validation failures: `grep "CSRF" /var/log/app.log`
-2. Identify source IP addresses
-3. Temporarily block suspicious IPs if pattern detected
-4. Verify all endpoints have CSRF protection
-5. Rotate CSRF token generation secret if compromise suspected
+**General Response Protocol:**
+1. **Detect**: Automated monitoring or manual detection
+2. **Assess**: Determine severity and scope
+3. **Contain**: Prevent further damage
+4. **Eradicate**: Remove threat
+5. **Recover**: Restore normal operations
+6. **Document**: Record incident details and lessons learned
 
-### Suspected Brute-Force Attack
-1. Check rate limiter logs: `grep "429" /var/log/app.log`
-2. Identify targeted endpoints and source IPs
-3. Temporarily reduce rate limits for affected endpoints
-4. Consider IP-based blocking for persistent attackers
-5. Monitor for distributed attacks (multiple IPs)
+### Incident Severity Levels
 
-### Session Hijacking Suspected
-1. Invalidate all active sessions: Clear `adminSessions` storage
-2. Force all users to re-login
-3. Rotate `SESSION_SECRET` environment variable
-4. Review access logs for suspicious activity
-5. Enable additional monitoring on admin routes
+| Level | Description | Response Time | Escalation |
+|-------|-------------|---------------|------------|
+| **P0 - Critical** | Active attack, data breach, system down | Immediate (< 15 min) | CTO, Security Lead |
+| **P1 - High** | Security vulnerability exploited, service degradation | < 1 hour | Security Team Lead |
+| **P2 - Medium** | Suspicious activity detected, potential vulnerability | < 4 hours | On-call Engineer |
+| **P3 - Low** | Minor security concern, false positive likely | < 24 hours | Regular review |
 
-### Database Breach
-1. Immediately revoke database credentials
-2. Audit all database queries in logs
-3. Check for SQL injection attempts
-4. Review all ORM queries for potential vulnerabilities
-5. Notify affected users if data exposed
+### Suspected CSRF Attack (P1)
+
+**Detection Indicators:**
+- Multiple CSRF validation failures from same IP
+- CSRF errors on login/registration (should be exempt)
+- Sudden spike in 403 errors across protected endpoints
+
+**Response Steps:**
+1. **Immediate (< 15 min):**
+   - Check logs: `grep "CSRF" /var/log/app.log | tail -100`
+   - Identify source IPs: `grep "CSRF token mismatch" /var/log/app.log | awk '{print $X}' | sort | uniq -c | sort -nr`
+   - Count affected endpoints: `grep "CSRF" /var/log/app.log | awk '{print $Y}' | sort | uniq -c`
+
+2. **Assessment (< 30 min):**
+   - Determine if attack is targeted (single endpoint) or broad (multiple endpoints)
+   - Check if traffic is from single IP, IP range, or distributed
+   - Review if any CSRF validations were bypassed (critical if yes)
+
+3. **Containment (< 1 hour):**
+   - If single IP: Block via firewall or middleware
+   ```typescript
+   const blockedIPs = new Set(['x.x.x.x']);
+   app.use((req, res, next) => {
+     if (blockedIPs.has(req.ip)) return res.status(403).end();
+     next();
+   });
+   ```
+   - If distributed: Enable stricter rate limiting temporarily
+   - If bypass suspected: Immediately escalate to P0, disable affected endpoints
+
+4. **Eradication:**
+   - Verify all 54 protected endpoints have `validateCsrfToken` middleware
+   - Review recent code changes for accidental CSRF protection removal
+   - If compromise suspected: Rotate `SESSION_SECRET` (forces re-login)
+
+5. **Recovery:**
+   - Monitor for 24 hours post-incident
+   - Document attack patterns for future detection
+
+6. **Follow-up:**
+   - Update WAF rules if applicable
+   - Add specific monitoring for detected attack patterns
+
+**Escalation:** If > 100 CSRF failures/hour OR any successful bypass detected → escalate to P0
+
+### Suspected Brute-Force Attack (P1-P2)
+
+**Detection Indicators:**
+- High volume of 429 responses from single IP
+- Multiple failed login attempts from same IP
+- Credential stuffing patterns (same username, different passwords)
+
+**Response Steps:**
+1. **Immediate:**
+   - Check rate limiter logs: `grep "429" /var/log/app.log | tail -100`
+   - Identify targeted endpoint: `grep "429" /var/log/app.log | awk '{print $endpoint}' | sort | uniq -c`
+   - Extract attacker IPs: `grep "429" /var/log/app.log | awk '{print $ip}' | sort | uniq -c | sort -nr | head -20`
+
+2. **Assessment:**
+   - **P2**: Single IP, <50 attempts/hour, stopped by rate limits
+   - **P1**: Multiple IPs (distributed attack), >100 attempts/hour, ongoing
+
+3. **Containment:**
+   - For single IP attack:
+     ```bash
+     # Block specific IP
+     iptables -A INPUT -s x.x.x.x -j DROP
+     ```
+   - For distributed attack:
+     - Reduce rate limits temporarily (admin login: 3→1, regular: 100→20)
+     - Enable CAPTCHA on login endpoints (requires code deployment)
+     - Consider enabling DDoS protection (Cloudflare, AWS Shield)
+
+4. **Eradication:**
+   - Review targeted accounts: Are they admin accounts? High-value users?
+   - Check if any attempts were successful: `grep "Login successful" /var/log/app.log`
+   - If successful logins detected: Force password reset for affected accounts
+
+5. **Recovery:**
+   - Gradually restore normal rate limits after attack ceases
+   - Monitor for 48 hours for resumed attacks
+
+**Escalation:** If admin account compromised → escalate to P0
+
+### Session Hijacking Suspected (P0)
+
+**Detection Indicators:**
+- Session used from multiple IPs simultaneously
+- Geographic anomalies (session in US, then China within minutes)
+- Admin actions from unexpected IP addresses
+- User reports of unauthorized actions
+
+**Response Steps:**
+1. **Immediate (< 5 min):**
+   - Invalidate ALL active admin sessions:
+     ```typescript
+     // Emergency session clear
+     await storage.clearAllAdminSessions();
+     ```
+   - Disable admin routes temporarily (if severe):
+     ```typescript
+     app.use('/api/admin', (req, res) => {
+       res.status(503).json({ error: 'Maintenance mode' });
+     });
+     ```
+
+2. **Assessment (< 15 min):**
+   - Review session creation logs for suspicious patterns
+   - Check if `SESSION_SECRET` was exposed (code commits, logs)
+   - Identify which admin accounts were potentially compromised
+   - Audit recent admin actions: `SELECT * FROM audit_log WHERE timestamp > NOW() - INTERVAL '24 hours'`
+
+3. **Containment (< 30 min):**
+   - Rotate `SESSION_SECRET` immediately
+   - Force all admins to re-authenticate
+   - Enable 2FA requirement for all admin accounts (if not already)
+   - Review and potentially revert recent admin changes
+
+4. **Eradication:**
+   - Review application code for session handling vulnerabilities
+   - Check for XSS vulnerabilities that could steal cookies
+   - Verify `httpOnly`, `secure`, `sameSite` flags on cookies
+   - Audit recent deployments for security regressions
+
+5. **Recovery:**
+   - Re-enable admin routes with enhanced monitoring
+   - Require all admins to change passwords
+   - Implement session IP binding (optional, may affect mobile users)
+
+6. **Post-Incident:**
+   - Conduct full security audit
+   - Review admin access logs for unauthorized changes
+   - Notify affected parties if data was accessed
+
+**Escalation:** Automatic P0, notify CTO and Security Lead immediately
+
+### Database Breach (P0)
+
+**Detection Indicators:**
+- Unauthorized database access detected
+- SQL injection attempts in logs
+- Database connection from unexpected IP
+- Data exfiltration detected (large queries)
+- User data appeared on dark web/public forums
+
+**Response Steps:**
+1. **Immediate (< 5 min):**
+   - **DO NOT** shut down database (may destroy forensic evidence)
+   - Revoke compromised database credentials
+   - Enable database query logging (if not already enabled)
+   - Block unauthorized IPs at firewall level
+
+2. **Assessment (< 30 min):**
+   - Determine breach vector: SQL injection? Credential leak? Insider threat?
+   - Identify accessed tables/data: `SELECT * FROM pg_stat_statements ORDER BY total_time DESC`
+   - Estimate number of affected users
+   - Check for data modification (UPDATE/DELETE queries)
+
+3. **Containment (< 1 hour):**
+   - Rotate all database credentials
+   - Update firewall rules to whitelist only application servers
+   - Enable read-only mode if data modification detected
+   - Take database snapshot for forensic analysis
+
+4. **Eradication:**
+   - Patch SQL injection vulnerabilities immediately
+   - Review all raw SQL queries in codebase
+   - Ensure all queries use parameterization (Drizzle ORM does this automatically)
+   - Conduct penetration testing to find additional vulnerabilities
+
+5. **Recovery:**
+   - Restore from backup if data was corrupted
+   - Verify data integrity post-breach
+   - Re-enable write access after vulnerabilities patched
+
+6. **Legal/Compliance (< 72 hours):**
+   - Notify affected users (GDPR requires within 72 hours)
+   - File breach report with relevant authorities
+   - Offer credit monitoring if payment data exposed
+   - Prepare public statement if necessary
+
+**Escalation:** Automatic P0, notify CTO, Legal, and PR teams immediately
+
+### Payment System Compromise (P0)
+
+**Detection Indicators:**
+- Unauthorized transactions
+- Webhook signature validation failures
+- Unexpected refunds or chargebacks
+- Stripe/PayPal security alerts
+
+**Response Steps:**
+1. **Immediate:**
+   - Disable payment endpoints: `app.use('/api/create-checkout-session', (req, res) => res.status(503).end());`
+   - Contact Stripe/PayPal support
+   - Preserve all logs and webhook payloads
+
+2. **Assessment:**
+   - Review recent transactions for anomalies
+   - Check webhook signature validation logic
+   - Verify API keys haven't been exposed
+
+3. **Containment:**
+   - Rotate Stripe/PayPal API keys
+   - Review and potentially reverse fraudulent transactions
+   - Enable additional fraud detection rules
+
+4. **Recovery:**
+   - Re-enable payments after vulnerabilities fixed
+   - Enhanced monitoring on payment flows
+
+**Escalation:** Automatic P0, notify CTO, Finance, and payment provider
 
 ## Production Deployment Security
 
