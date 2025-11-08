@@ -23,7 +23,8 @@ import {
   insertGeneratedPlaylistSchema,
   insertFriendActivitySchema,
   insertMusicQuizSchema,
-  SUBSCRIPTION_TIERS 
+  SUBSCRIPTION_TIERS,
+  type SubscriptionTier
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
 import bcrypt from "bcrypt";

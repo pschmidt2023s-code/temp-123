@@ -221,7 +221,7 @@ export interface IStorage {
   updateRadioStationPlayCount(id: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
+export class MemStorage {
   private users: Map<string, User>;
   private playlists: Map<string, Playlist>;
   private subscriptions: Map<string, Subscription>;
@@ -713,7 +713,8 @@ import {
   quizScores,
   generatedPlaylists,
   offlineDownloads,
-  customRadioStations
+  customRadioStations,
+  leaderboards
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
