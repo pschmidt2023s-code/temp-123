@@ -2377,6 +2377,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== PHASE 2.6: OFFLINE DOWNLOADS ==========
+  
+  app.get('/api/downloads/:userId', async (req, res) => {
+    try {
+      const downloads = await storage.getUserDownloads(req.params.userId);
+      res.json(downloads);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch downloads' });
+    }
+  });
+
+  app.post('/api/downloads', async (req, res) => {
+    try {
+      const validated = insertOfflineDownloadSchema.parse(req.body);
+      const download = await storage.createDownload(validated);
+      res.json(download);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid download data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create download' });
+    }
+  });
+
+  app.delete('/api/downloads/:id', async (req, res) => {
+    try {
+      const success = await storage.deleteDownload(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete download' });
+    }
+  });
+
+  app.get('/api/downloads/:userId/storage', async (req, res) => {
+    try {
+      const totalBytes = await storage.getUserStorageUsage(req.params.userId);
+      res.json({ totalBytes, totalMB: Math.round(totalBytes / 1024 / 1024) });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch storage usage' });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Setup WebSocket server for Live Music Rooms

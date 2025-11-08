@@ -34,6 +34,7 @@ import Karaoke from "@/pages/Karaoke";
 import MusicQuizzes from "@/pages/MusicQuizzes";
 import NotFound from "@/pages/not-found";
 import Leaderboards from '@/pages/Leaderboards';
+import Downloads from '@/pages/Downloads';
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
 import { useLocation } from "wouter";
@@ -71,6 +72,7 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/karaoke" component={Karaoke} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/quizzes" component={MusicQuizzes} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/leaderboards" component={Leaderboards} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/downloads" component={Downloads} />}
       <Route component={NotFound} />
     </Switch>
   );

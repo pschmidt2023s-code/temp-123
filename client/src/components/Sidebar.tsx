@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift, UsersFour, MagicWand, Microphone, GameController, Trophy } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift, UsersFour, MagicWand, Microphone, GameController, Trophy, DownloadSimple } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -33,6 +33,7 @@ export function Sidebar() {
     { icon: Microphone, label: 'Karaoke-Modus', path: '/karaoke' },
     { icon: GameController, label: 'Music Quizzes', path: '/quizzes' },
     { icon: Trophy, label: 'Leaderboards', path: '/leaderboards' },
+    { icon: DownloadSimple, label: 'Downloads', path: '/downloads' },
     { icon: Equalizer, label: 'Audio-Einstellungen', path: '/audio-settings' },
     { icon: Alarm, label: 'Wecker & Timer', path: '/alarms' },
     { icon: ChartBar, label: 'Meine Statistiken', path: '/stats' },

@@ -205,6 +205,12 @@ export interface IStorage {
   updateUserListeningStats(userId: string, artistId: string, artistName: string, minutes: number): Promise<void>;
   recalculateLeaderboardRanks(artistId: string, period: string): Promise<void>;
   checkAndUnlockAchievements(userId: string): Promise<Achievement[]>;
+
+  // ========== PHASE 2.6: OFFLINE DOWNLOADS ==========
+  getUserDownloads(userId: string): Promise<any[]>;
+  createDownload(download: any): Promise<any>;
+  deleteDownload(id: string): Promise<boolean>;
+  getUserStorageUsage(userId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -1843,6 +1849,36 @@ class DbStorage implements IStorage {
     }
 
     return newAchievements;
+  }
+
+  // ========== PHASE 2.6: OFFLINE DOWNLOADS ==========
+  async getUserDownloads(userId: string): Promise<any[]> {
+    const downloads = await db.select()
+      .from(offlineDownloads)
+      .where(eq(offlineDownloads.userId, userId))
+      .orderBy(desc(offlineDownloads.downloadedAt));
+    return downloads;
+  }
+
+  async createDownload(download: any): Promise<any> {
+    const [newDownload] = await db.insert(offlineDownloads)
+      .values(download)
+      .returning();
+    return newDownload;
+  }
+
+  async deleteDownload(id: string): Promise<boolean> {
+    const result = await db.delete(offlineDownloads)
+      .where(eq(offlineDownloads.id, id));
+    return true;
+  }
+
+  async getUserStorageUsage(userId: string): Promise<number> {
+    const downloads = await db.select()
+      .from(offlineDownloads)
+      .where(eq(offlineDownloads.userId, userId));
+    
+    return downloads.reduce((total, d) => total + (d.fileSizeBytes || 0), 0);
   }
 }
 
