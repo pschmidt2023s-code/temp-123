@@ -33,6 +33,7 @@ import AIPlaylists from "@/pages/AIPlaylists";
 import Karaoke from "@/pages/Karaoke";
 import MusicQuizzes from "@/pages/MusicQuizzes";
 import NotFound from "@/pages/not-found";
+import Leaderboards from '@/pages/Leaderboards';
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
 import { useLocation } from "wouter";
@@ -69,6 +70,7 @@ function Router() {
       {!isAdminRoute && !isAuthRoute && <Route path="/ai-playlists" component={AIPlaylists} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/karaoke" component={Karaoke} />}
       {!isAdminRoute && !isAuthRoute && <Route path="/quizzes" component={MusicQuizzes} />}
+      {!isAdminRoute && !isAuthRoute && <Route path="/leaderboards" component={Leaderboards} />}
       <Route component={NotFound} />
     </Switch>
   );

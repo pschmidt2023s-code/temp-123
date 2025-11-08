@@ -19,6 +19,29 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
+// Helper functions for period boundaries
+function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday as week start
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getMonthStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getPeriodStart(period: string): Date | null {
+  if (period === 'weekly') return getWeekStart();
+  if (period === 'monthly') return getMonthStart();
+  return null; // all_time has no period boundary
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -175,6 +198,13 @@ export interface IStorage {
   submitQuizScore(quizId: string, userId: string, score: number, maxScore: number): Promise<any>;
   getQuizScores(quizId: string): Promise<any[]>;
   getUserQuizScores(userId: string): Promise<any[]>;
+
+  // ========== PHASE 2.5: LEADERBOARDS & ACHIEVEMENTS ==========
+  getLeaderboards(artistId: string, period: string, limit?: number): Promise<Leaderboard[]>;
+  getUserLeaderboardPosition(userId: string, artistId: string, period: string): Promise<Leaderboard | undefined>;
+  updateUserListeningStats(userId: string, artistId: string, artistName: string, minutes: number): Promise<void>;
+  recalculateLeaderboardRanks(artistId: string, period: string): Promise<void>;
+  checkAndUnlockAchievements(userId: string): Promise<Achievement[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1608,6 +1638,211 @@ class DbStorage implements IStorage {
       .where(eq(quizScores.userId, userId))
       .orderBy(desc(quizScores.completedAt));
     return scores;
+  }
+
+  // ========== PHASE 2.5: LEADERBOARDS & ACHIEVEMENTS ==========
+  async getLeaderboards(artistId: string, period: string, limit: number = 50): Promise<Leaderboard[]> {
+    const currentPeriodStart = getPeriodStart(period);
+    
+    // Build query conditions
+    const conditions = [
+      eq(leaderboards.artistId, artistId),
+      eq(leaderboards.period, period)
+    ];
+    
+    // For weekly/monthly, only include entries from current period
+    if (currentPeriodStart) {
+      conditions.push(sql`${leaderboards.periodStart} >= ${currentPeriodStart}`);
+    }
+    
+    const boards = await db.select()
+      .from(leaderboards)
+      .where(and(...conditions))
+      .orderBy(leaderboards.rank)
+      .limit(limit);
+    return boards;
+  }
+
+  async getUserLeaderboardPosition(userId: string, artistId: string, period: string): Promise<Leaderboard | undefined> {
+    const currentPeriodStart = getPeriodStart(period);
+    
+    // Build query conditions
+    const conditions = [
+      eq(leaderboards.userId, userId),
+      eq(leaderboards.artistId, artistId),
+      eq(leaderboards.period, period)
+    ];
+    
+    // For weekly/monthly, only include entries from current period
+    if (currentPeriodStart) {
+      conditions.push(sql`${leaderboards.periodStart} >= ${currentPeriodStart}`);
+    }
+    
+    const result = await db.select()
+      .from(leaderboards)
+      .where(and(...conditions))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateUserListeningStats(userId: string, artistId: string, artistName: string, minutes: number): Promise<void> {
+    // Update for all periods: weekly, monthly, all_time
+    const periods = ['weekly', 'monthly', 'all_time'];
+    
+    for (const period of periods) {
+      const currentPeriodStart = getPeriodStart(period);
+      
+      const existing = await db.select()
+        .from(leaderboards)
+        .where(and(
+          eq(leaderboards.userId, userId),
+          eq(leaderboards.artistId, artistId),
+          eq(leaderboards.period, period)
+        ))
+        .limit(1);
+
+      if (existing.length > 0) {
+        const entry = existing[0];
+        
+        // Check if we need to reset for new period (weekly/monthly only)
+        const needsReset = currentPeriodStart && entry.periodStart && 
+          new Date(entry.periodStart).getTime() < currentPeriodStart.getTime();
+        
+        if (needsReset) {
+          // Reset to new period
+          await db.update(leaderboards)
+            .set({ 
+              totalMinutes: minutes,
+              periodStart: currentPeriodStart,
+              updatedAt: new Date()
+            })
+            .where(and(
+              eq(leaderboards.userId, userId),
+              eq(leaderboards.artistId, artistId),
+              eq(leaderboards.period, period)
+            ));
+        } else {
+          // Add to existing
+          await db.update(leaderboards)
+            .set({ 
+              totalMinutes: sql`${leaderboards.totalMinutes} + ${minutes}`,
+              updatedAt: new Date()
+            })
+            .where(and(
+              eq(leaderboards.userId, userId),
+              eq(leaderboards.artistId, artistId),
+              eq(leaderboards.period, period)
+            ));
+        }
+      } else {
+        // Create new entry
+        await db.insert(leaderboards).values({
+          userId,
+          artistId,
+          artistName,
+          totalMinutes: minutes,
+          period,
+          periodStart: currentPeriodStart,
+          rank: null,
+        });
+      }
+    }
+
+    // Recalculate ranks after update
+    for (const period of periods) {
+      await this.recalculateLeaderboardRanks(artistId, period);
+    }
+  }
+
+  async recalculateLeaderboardRanks(artistId: string, period: string): Promise<void> {
+    const currentPeriodStart = getPeriodStart(period);
+    
+    // Build query conditions
+    const conditions = [
+      eq(leaderboards.artistId, artistId),
+      eq(leaderboards.period, period)
+    ];
+    
+    // For weekly/monthly, only include entries from current period
+    if (currentPeriodStart) {
+      conditions.push(sql`${leaderboards.periodStart} >= ${currentPeriodStart}`);
+    }
+    
+    const boards = await db.select()
+      .from(leaderboards)
+      .where(and(...conditions))
+      .orderBy(desc(leaderboards.totalMinutes));
+
+    for (let i = 0; i < boards.length; i++) {
+      await db.update(leaderboards)
+        .set({ rank: i + 1 })
+        .where(eq(leaderboards.id, boards[i].id));
+    }
+  }
+
+  async checkAndUnlockAchievements(userId: string): Promise<Achievement[]> {
+    const newAchievements: Achievement[] = [];
+    const existingAchievements = await this.getUserAchievements(userId);
+    const existingTypes = existingAchievements.map(a => a.type);
+
+    // Check for Quiz Master (3+ quizzes completed)
+    if (!existingTypes.includes('quiz_master')) {
+      const userScores = await db.select()
+        .from(quizScores)
+        .where(eq(quizScores.userId, userId));
+      
+      if (userScores.length >= 3) {
+        const achievement = await this.createAchievement({
+          userId,
+          type: 'quiz_master',
+          title: 'Quiz Master',
+          description: '3 Music-Quizzes abgeschlossen',
+          iconName: 'Trophy',
+        });
+        newAchievements.push(achievement);
+      }
+    }
+
+    // Check for Top Listener (rank 1 on any leaderboard)
+    if (!existingTypes.includes('top_listener')) {
+      const topRanks = await db.select()
+        .from(leaderboards)
+        .where(and(
+          eq(leaderboards.userId, userId),
+          eq(leaderboards.rank, 1)
+        ));
+      
+      if (topRanks.length > 0) {
+        const achievement = await this.createAchievement({
+          userId,
+          type: 'top_listener',
+          title: 'Top Listener',
+          description: 'Platz 1 im Artist-Leaderboard erreicht',
+          iconName: 'Crown',
+        });
+        newAchievements.push(achievement);
+      }
+    }
+
+    // Check for Playlist Creator (created at least 1 playlist)
+    if (!existingTypes.includes('playlist_creator')) {
+      const userPlaylists = await db.select()
+        .from(playlists)
+        .where(eq(playlists.userId, userId));
+      
+      if (userPlaylists.length >= 1) {
+        const achievement = await this.createAchievement({
+          userId,
+          type: 'playlist_creator',
+          title: 'Playlist Creator',
+          description: 'Erste Playlist erstellt',
+          iconName: 'MusicNotes',
+        });
+        newAchievements.push(achievement);
+      }
+    }
+
+    return newAchievements;
   }
 }
 

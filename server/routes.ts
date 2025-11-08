@@ -1910,6 +1910,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== LEADERBOARDS & ACHIEVEMENTS ROUTES ==========
+  
+  // Get leaderboards for specific artist
+  app.get('/api/leaderboards/:artistId', async (req, res) => {
+    try {
+      const { period = 'all_time', limit = '50' } = req.query;
+      const boards = await storage.getLeaderboards(
+        req.params.artistId, 
+        period as string, 
+        parseInt(limit as string)
+      );
+      res.json(boards);
+    } catch (error) {
+      console.error('Get leaderboards error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get user's position on leaderboard
+  app.get('/api/leaderboards/:artistId/user/:userId', async (req, res) => {
+    try {
+      const { period = 'all_time' } = req.query;
+      const position = await storage.getUserLeaderboardPosition(
+        req.params.userId,
+        req.params.artistId,
+        period as string
+      );
+      res.json(position || { rank: null, totalMinutes: 0 });
+    } catch (error) {
+      console.error('Get user leaderboard position error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Update listening stats (called when song plays)
+  app.post('/api/leaderboards/track-play', async (req, res) => {
+    try {
+      const { userId, artistId, artistName, minutes } = req.body;
+      if (!userId || !artistId || !artistName || typeof minutes !== 'number') {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      await storage.updateUserListeningStats(userId, artistId, artistName, minutes);
+      
+      // Check for new achievements
+      const newAchievements = await storage.checkAndUnlockAchievements(userId);
+      
+      res.json({ success: true, newAchievements });
+    } catch (error) {
+      console.error('Track play error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get user achievements
+  app.get('/api/users/:userId/achievements', async (req, res) => {
+    try {
+      const achievements = await storage.getUserAchievements(req.params.userId);
+      res.json(achievements);
+    } catch (error) {
+      console.error('Get user achievements error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Lyrics Routes (Admin Protected)
   app.get('/api/lyrics/:releaseId', async (req, res) => {
     try {

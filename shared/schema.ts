@@ -147,10 +147,11 @@ export const userStats = pgTable("user_stats", {
 export const achievements = pgTable("achievements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
-  type: text("type").notNull(), // 'minutes_listened', 'songs_played', 'artists_discovered'
-  milestone: integer("milestone").notNull(), // 1000, 10000, 100000
+  type: text("type").notNull(), // 'first_song', 'playlist_creator', 'quiz_master', 'top_listener', etc.
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(), // Phosphor icon name
   unlockedAt: timestamp("unlocked_at").defaultNow(),
-  isShared: boolean("is_shared").default(false),
 });
 
 export const artistProfiles = pgTable("artist_profiles", {
@@ -332,6 +333,7 @@ export const leaderboards = pgTable("leaderboards", {
   totalMinutes: integer("total_minutes").notNull(),
   rank: integer("rank"),
   period: text("period").notNull(), // 'weekly', 'monthly', 'all_time'
+  periodStart: timestamp("period_start"), // Start of current week/month for this entry
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
