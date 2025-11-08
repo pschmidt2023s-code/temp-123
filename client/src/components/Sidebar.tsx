@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, AlarmClock, ChartBar, Gift } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -29,7 +29,7 @@ export function Sidebar() {
 
   const settingsItems = [
     { icon: Equalizer, label: 'Audio-Einstellungen', path: '/audio-settings' },
-    { icon: AlarmClock, label: 'Wecker & Timer', path: '/alarms' },
+    { icon: Alarm, label: 'Wecker & Timer', path: '/alarms' },
     { icon: ChartBar, label: 'Meine Statistiken', path: '/stats' },
     { icon: Gift, label: 'Geschenke & Codes', path: '/rewards' },
   ];

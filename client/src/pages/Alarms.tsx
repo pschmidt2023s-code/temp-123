@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { AlarmClock, Plus, Trash, MoonStars } from '@phosphor-icons/react';
+import { Alarm, Plus, Trash, MoonStars } from '@phosphor-icons/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -163,7 +163,7 @@ export default function Alarms() {
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <AlarmClock size={32} weight="bold" className="text-primary" />
+          <Alarm size={32} weight="bold" className="text-primary" />
           <h1 className="text-3xl font-bold" data-testid="heading-alarms">Wecker & Timer</h1>
         </div>
 
@@ -274,7 +274,7 @@ export default function Alarms() {
           
           {alarms.length === 0 ? (
             <Card className="p-8 text-center">
-              <AlarmClock size={48} weight="light" className="mx-auto mb-4 text-muted-foreground" />
+              <Alarm size={48} weight="light" className="mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">Noch keine Wecker erstellt</p>
             </Card>
           ) : (
