@@ -4,12 +4,12 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-  "dev": "tsx watch server/index.ts",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "preview": "vite preview",
-  "start": "NODE_ENV=production tsx server/index.ts"
-}
+    "dev": "tsx watch server/index.ts",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "preview": "vite preview",
+    "start": "NODE_ENV=production tsx server/index.ts"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
