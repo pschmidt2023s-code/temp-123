@@ -38,15 +38,21 @@ import Downloads from '@/pages/Downloads';
 import RadioStations from '@/pages/RadioStations';
 import CarMode from '@/pages/CarMode';
 import VoiceCommands from '@/pages/VoiceCommands';
+import Impressum from '@/pages/Impressum';
+import AGB from '@/pages/AGB';
+import Datenschutz from '@/pages/Datenschutz';
 import { useEffect } from "react";
 import { musicKit } from "@/lib/musickit";
 import { useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
+import { ScrollToTop } from "@/components/ScrollToTop";
+import { CookieBanner } from "@/components/CookieBanner";
 
 function Router() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith('/admin');
   const isAuthRoute = location === '/login' || location === '/register';
+  const isLegalRoute = location === '/impressum' || location === '/agb' || location === '/datenschutz';
 
   return (
     <Switch>
@@ -54,6 +60,9 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/impressum" component={Impressum} />
+      <Route path="/agb" component={AGB} />
+      <Route path="/datenschutz" component={Datenschutz} />
       <Route path="/artist-register/:code" component={ArtistRegister} />
       <Route path="/artist-portal" component={ArtistPortal} />
       <Route path="/settings" component={Settings} />
@@ -89,12 +98,13 @@ function App() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith('/admin');
   const isAuthRoute = location === '/login' || location === '/register';
+  const isLegalRoute = location === '/impressum' || location === '/agb' || location === '/datenschutz';
 
   useEffect(() => {
     musicKit.configure();
   }, []);
 
-  if (isAdminRoute || isAuthRoute) {
+  if (isAdminRoute || isAuthRoute || isLegalRoute) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
@@ -134,6 +144,12 @@ function App() {
           <MobileNav />
           
           <Player />
+          
+          {/* Scroll to Top Button */}
+          <ScrollToTop />
+          
+          {/* Cookie Banner */}
+          <CookieBanner />
         </div>
         <Toaster />
       </TooltipProvider>
