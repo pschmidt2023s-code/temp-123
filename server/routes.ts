@@ -1632,6 +1632,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== PHASE 2: FRIEND SYSTEM ROUTES ==========
+  
+  // Get user's friends list
+  app.get('/api/friends/:userId', async (req, res) => {
+    try {
+      const friends = await storage.getFriends(req.params.userId);
+      res.json(friends);
+    } catch (error) {
+      console.error('Get friends error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get pending friend requests
+  app.get('/api/friends/:userId/pending', async (req, res) => {
+    try {
+      const requests = await storage.getPendingFriendRequests(req.params.userId);
+      res.json(requests);
+    } catch (error) {
+      console.error('Get pending requests error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Send friend request
+  app.post('/api/friends/request', async (req, res) => {
+    try {
+      const { userId, friendId } = req.body;
+      if (!userId || !friendId) {
+        return res.status(400).json({ error: 'userId and friendId are required' });
+      }
+      const request = await storage.sendFriendRequest(userId, friendId);
+      res.status(201).json(request);
+    } catch (error: any) {
+      console.error('Send friend request error:', error);
+      res.status(400).json({ error: error.message || 'Fehler beim Senden der Freundschaftsanfrage' });
+    }
+  });
+
+  // Accept friend request
+  app.post('/api/friends/:requestId/accept', async (req, res) => {
+    try {
+      const friendship = await storage.acceptFriendRequest(req.params.requestId);
+      if (!friendship) {
+        return res.status(404).json({ error: 'Friend request not found' });
+      }
+      res.json(friendship);
+    } catch (error) {
+      console.error('Accept friend request error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Reject friend request
+  app.delete('/api/friends/:requestId/reject', async (req, res) => {
+    try {
+      const rejected = await storage.rejectFriendRequest(req.params.requestId);
+      if (!rejected) {
+        return res.status(404).json({ error: 'Friend request not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Reject friend request error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Remove friend
+  app.delete('/api/friends/:friendshipId', async (req, res) => {
+    try {
+      const removed = await storage.removeFriend(req.params.friendshipId);
+      if (!removed) {
+        return res.status(404).json({ error: 'Friendship not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Remove friend error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get friend activity feed
+  app.get('/api/friends/:userId/activity', async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const activities = await storage.getFriendActivity(req.params.userId, limit);
+      res.json(activities);
+    } catch (error) {
+      console.error('Get friend activity error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Record friend activity
+  app.post('/api/friends/activity', async (req, res) => {
+    try {
+      const { userId, trackId, trackName, artistName, albumArt } = req.body;
+      if (!userId || !trackId || !trackName || !artistName) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      const activity = await storage.recordFriendActivity(userId, trackId, trackName, artistName, albumArt);
+      res.status(201).json(activity);
+    } catch (error) {
+      console.error('Record friend activity error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Lyrics Routes (Admin Protected)
   app.get('/api/lyrics/:releaseId', async (req, res) => {
     try {

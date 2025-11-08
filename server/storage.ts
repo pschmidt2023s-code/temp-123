@@ -148,6 +148,16 @@ export interface IStorage {
   // User Stats (Enhanced)
   getTotalListeningTime(userId: string): Promise<number>;
   trackSongPlay(userId: string, songId: string, songTitle: string, artistName: string, durationMinutes: number): Promise<void>;
+  
+  // ========== PHASE 2: FRIEND SYSTEM ==========
+  getFriends(userId: string): Promise<any[]>;
+  getPendingFriendRequests(userId: string): Promise<any[]>;
+  sendFriendRequest(userId: string, friendId: string): Promise<any>;
+  acceptFriendRequest(requestId: string): Promise<any>;
+  rejectFriendRequest(requestId: string): Promise<boolean>;
+  removeFriend(friendshipId: string): Promise<boolean>;
+  getFriendActivity(userId: string, limit?: number): Promise<any[]>;
+  recordFriendActivity(userId: string, trackId: string, trackName: string, artistName: string, albumArt?: string): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -517,10 +527,43 @@ export class MemStorage implements IStorage {
   async deleteWebAuthnCredential(id: string): Promise<boolean> {
     return this.webauthnCredentials.delete(id);
   }
+
+  // ========== PHASE 2: FRIEND SYSTEM STUBS ==========
+  async getFriends(userId: string): Promise<any[]> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async getPendingFriendRequests(userId: string): Promise<any[]> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async sendFriendRequest(userId: string, friendId: string): Promise<any> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async acceptFriendRequest(requestId: string): Promise<any> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async rejectFriendRequest(requestId: string): Promise<boolean> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async removeFriend(friendshipId: string): Promise<boolean> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async getFriendActivity(userId: string, limit?: number): Promise<any[]> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
+
+  async recordFriendActivity(userId: string, trackId: string, trackName: string, artistName: string, albumArt?: string): Promise<any> {
+    throw new Error('Friend system not implemented in MemStorage');
+  }
 }
 
 import { db } from './db';
-import { eq, sql, desc, and } from 'drizzle-orm';
+import { eq, sql, desc, and, or, inArray } from 'drizzle-orm';
 import {
   users,
   playlists,
@@ -543,7 +586,9 @@ import {
   alarms,
   sleepTimers,
   giftCards,
-  referrals
+  referrals,
+  friends,
+  friendActivity
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -1261,6 +1306,140 @@ class DbStorage implements IStorage {
         lastPlayedAt: new Date()
       });
     }
+  }
+
+  // ========== PHASE 2: FRIEND SYSTEM ==========
+  
+  async getFriends(userId: string): Promise<any[]> {
+    const friendsList = await db.select().from(friends).where(
+      and(
+        or(
+          eq(friends.userId, userId),
+          eq(friends.friendId, userId)
+        ),
+        eq(friends.status, 'accepted')
+      )
+    );
+
+    const friendIds = friendsList.map(f => 
+      f.userId === userId ? f.friendId : f.userId
+    );
+
+    if (friendIds.length === 0) return [];
+
+    const friendProfiles = await db.select().from(users).where(
+      inArray(users.id, friendIds)
+    );
+
+    return friendsList.map(friendship => {
+      const friendId = friendship.userId === userId ? friendship.friendId : friendship.userId;
+      const profile = friendProfiles.find(p => p.id === friendId);
+      return {
+        ...friendship,
+        friend: profile
+      };
+    });
+  }
+
+  async getPendingFriendRequests(userId: string): Promise<any[]> {
+    const requests = await db.select().from(friends).where(
+      and(
+        eq(friends.friendId, userId),
+        eq(friends.status, 'pending')
+      )
+    );
+
+    if (requests.length === 0) return [];
+
+    const userIds = requests.map(r => r.userId);
+    const requesters = await db.select().from(users).where(
+      inArray(users.id, userIds)
+    );
+
+    return requests.map(request => ({
+      ...request,
+      requester: requesters.find(u => u.id === request.userId)
+    }));
+  }
+
+  async sendFriendRequest(userId: string, friendId: string): Promise<any> {
+    if (userId === friendId) {
+      throw new Error('Du kannst dir nicht selbst eine Freundschaftsanfrage senden');
+    }
+
+    const existing = await db.select().from(friends).where(
+      or(
+        and(eq(friends.userId, userId), eq(friends.friendId, friendId)),
+        and(eq(friends.userId, friendId), eq(friends.friendId, userId))
+      )
+    ).limit(1);
+
+    if (existing[0]) {
+      if (existing[0].status === 'accepted') {
+        throw new Error('Ihr seid bereits befreundet');
+      }
+      throw new Error('Freundschaftsanfrage bereits gesendet');
+    }
+
+    const result = await db.insert(friends).values({
+      userId,
+      friendId,
+      status: 'pending'
+    }).returning();
+
+    return result[0];
+  }
+
+  async acceptFriendRequest(requestId: string): Promise<any> {
+    const result = await db.update(friends).set({
+      status: 'accepted',
+      acceptedAt: new Date()
+    }).where(eq(friends.id, requestId)).returning();
+
+    return result[0];
+  }
+
+  async rejectFriendRequest(requestId: string): Promise<boolean> {
+    const result = await db.delete(friends).where(eq(friends.id, requestId)).returning();
+    return result.length > 0;
+  }
+
+  async removeFriend(friendshipId: string): Promise<boolean> {
+    const result = await db.delete(friends).where(eq(friends.id, friendshipId)).returning();
+    return result.length > 0;
+  }
+
+  async getFriendActivity(userId: string, limit: number = 20): Promise<any[]> {
+    const friendsList = await this.getFriends(userId);
+    const friendIds = friendsList.map(f => f.friend.id);
+
+    if (friendIds.length === 0) return [];
+
+    const activities = await db.select().from(friendActivity).where(
+      inArray(friendActivity.userId, friendIds)
+    ).orderBy(desc(friendActivity.timestamp)).limit(limit);
+
+    const userIds = Array.from(new Set(activities.map(a => a.userId)));
+    const activityUsers = await db.select().from(users).where(
+      inArray(users.id, userIds)
+    );
+
+    return activities.map(activity => ({
+      ...activity,
+      user: activityUsers.find(u => u.id === activity.userId)
+    }));
+  }
+
+  async recordFriendActivity(userId: string, trackId: string, trackName: string, artistName: string, albumArt?: string): Promise<any> {
+    const result = await db.insert(friendActivity).values({
+      userId,
+      trackId,
+      trackName,
+      artistName,
+      albumArt
+    }).returning();
+
+    return result[0];
   }
 }
 
