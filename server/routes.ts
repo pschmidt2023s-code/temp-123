@@ -1231,13 +1231,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'User not found' });
       }
       
-      // Delete user's subscription first
+      // Delete all user-related data in correct order
+      // 1. Delete user's subscription
       const subscription = await storage.getUserSubscription(req.params.id);
       if (subscription) {
         await storage.cancelSubscription(subscription.id);
       }
       
-      // Delete the user
+      // 2. Delete user's playlists
+      const playlists = await storage.getPlaylistsByUser(req.params.id);
+      for (const playlist of playlists) {
+        await storage.deletePlaylist(playlist.id);
+      }
+      
+      // 3. Delete user's likes
+      const likes = await storage.getUserLikes(req.params.id);
+      for (const like of likes) {
+        await storage.removeLike(req.params.id, like.itemId);
+      }
+      
+      // 4. Delete user's listening history
+      await storage.deleteListeningHistory(req.params.id);
+      
+      // 5. Delete user's achievements (if any)
+      const achievements = await storage.getUserAchievements(req.params.id);
+      for (const achievement of achievements) {
+        await storage.deleteAchievement(req.params.id, achievement.achievementType);
+      }
+      
+      // 6. Delete user's downloads
+      const downloads = await storage.getUserDownloads(req.params.id);
+      for (const download of downloads) {
+        await storage.deleteDownload(req.params.id, download.trackId);
+      }
+      
+      // 7. Delete user's radio stations
+      const stations = await storage.getUserRadioStations(req.params.id);
+      for (const station of stations) {
+        await storage.deleteRadioStation(station.id);
+      }
+      
+      // 8. Delete user's alarms
+      const alarms = await storage.getUserAlarms(req.params.id);
+      for (const alarm of alarms) {
+        await storage.deleteAlarm(alarm.id);
+      }
+      
+      // 9. Delete friendships
+      const friends = await storage.getUserFriends(req.params.id);
+      for (const friend of friends) {
+        await storage.removeFriend(req.params.id, friend.friendId);
+      }
+      
+      // 10. Finally delete the user
       const deleted = await storage.deleteUser(req.params.id);
       if (!deleted) {
         return res.status(500).json({ error: 'Failed to delete user' });
@@ -1245,7 +1291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
+      console.error('User deletion error:', error);
+      res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) });
     }
   });
 

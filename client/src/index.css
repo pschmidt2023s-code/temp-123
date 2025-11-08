@@ -5,6 +5,67 @@
 /* Smooth Scrolling */
 html {
   scroll-behavior: smooth;
+  /* iOS momentum scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent scroll bounce on iOS */
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* iOS momentum scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent scroll bounce */
+  overscroll-behavior-y: none;
+}
+
+/* Optimized scrolling containers */
+main,
+.overflow-y-auto,
+.overflow-auto {
+  /* iOS momentum scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Smooth scrolling on touch devices */
+  scroll-behavior: smooth;
+  /* Prevent scroll bounce */
+  overscroll-behavior: contain;
+}
+
+/* Touch optimizations */
+* {
+  /* Improve touch responsiveness */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection for content */
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+input,
+textarea,
+[contenteditable],
+.lyrics-content,
+.metadata,
+td,
+th {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Prevent text selection only for UI elements */
+button,
+a:not(.text-content),
+nav,
+[role="button"],
+[role="tab"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Custom Scrollbar */
@@ -31,6 +92,28 @@ html {
 * {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+}
+
+/* Mobile touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Hide scrollbar on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* Better touch targets */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Momentum scrolling for all scrollable elements */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* SPOTIFY EXACT COLORS - DARK MODE ONLY */
