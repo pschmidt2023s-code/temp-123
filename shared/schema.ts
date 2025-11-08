@@ -303,6 +303,19 @@ export const offlineDownloads = pgTable("offline_downloads", {
   lastAccessedAt: timestamp("last_accessed_at"),
 });
 
+export const customRadioStations = pgTable("custom_radio_stations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  seedType: text("seed_type").notNull(), // 'artist', 'song', 'genre'
+  seedId: text("seed_id").notNull(), // MusicKit ID or genre name
+  seedName: text("seed_name").notNull(), // Display name
+  seedArtwork: text("seed_artwork"), // Album/artist artwork URL
+  createdAt: timestamp("created_at").defaultNow(),
+  lastPlayedAt: timestamp("last_played_at"),
+  playCount: integer("play_count").default(0),
+});
+
 // ========== TIER 3: GAMIFICATION & ENGAGEMENT ==========
 
 export const musicQuizzes = pgTable("music_quizzes", {
@@ -687,6 +700,10 @@ export type InsertAudioSettings = z.infer<typeof insertAudioSettingsSchema>;
 export const insertOfflineDownloadSchema = createInsertSchema(offlineDownloads).omit({ id: true, downloadedAt: true });
 export type OfflineDownload = typeof offlineDownloads.$inferSelect;
 export type InsertOfflineDownload = z.infer<typeof insertOfflineDownloadSchema>;
+
+export const insertCustomRadioStationSchema = createInsertSchema(customRadioStations).omit({ id: true, createdAt: true });
+export type CustomRadioStation = typeof customRadioStations.$inferSelect;
+export type InsertCustomRadioStation = z.infer<typeof insertCustomRadioStationSchema>;
 
 // Gamification
 export const insertMusicQuizSchema = createInsertSchema(musicQuizzes).omit({ id: true, createdAt: true, playCount: true });

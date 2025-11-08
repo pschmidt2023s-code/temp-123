@@ -19,6 +19,7 @@ import {
   insertGiftCardSchema,
   insertReferralSchema,
   insertOfflineDownloadSchema,
+  insertCustomRadioStationSchema,
   insertGeneratedPlaylistSchema,
   insertFriendActivitySchema,
   insertMusicQuizSchema,
@@ -2420,6 +2421,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[DOWNLOADS] GET storage error:', error);
       res.status(500).json({ error: 'Failed to fetch storage usage' });
+    }
+  });
+
+  // ========== PHASE 2.7: CUSTOM RADIO STATIONS ==========
+  
+  app.get('/api/radio/:userId', async (req, res) => {
+    try {
+      const stations = await storage.getUserRadioStations(req.params.userId);
+      res.json(stations);
+    } catch (error) {
+      console.error('[RADIO] GET error:', error);
+      res.status(500).json({ error: 'Failed to fetch radio stations' });
+    }
+  });
+
+  app.post('/api/radio', async (req, res) => {
+    try {
+      const validated = insertCustomRadioStationSchema.parse(req.body);
+      const station = await storage.createRadioStation(validated);
+      res.json(station);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid station data', details: error.errors });
+      }
+      console.error('[RADIO] POST error:', error);
+      res.status(500).json({ error: 'Failed to create radio station' });
+    }
+  });
+
+  app.delete('/api/radio/:id', async (req, res) => {
+    try {
+      const success = await storage.deleteRadioStation(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error('[RADIO] DELETE error:', error);
+      res.status(500).json({ error: 'Failed to delete radio station' });
+    }
+  });
+
+  app.post('/api/radio/:id/play', async (req, res) => {
+    try {
+      await storage.updateRadioStationPlayCount(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[RADIO] POST play error:', error);
+      res.status(500).json({ error: 'Failed to update play count' });
     }
   });
 

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift, UsersFour, MagicWand, Microphone, GameController, Trophy, DownloadSimple } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift, UsersFour, MagicWand, Microphone, GameController, Trophy, DownloadSimple, Radio } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -30,6 +30,7 @@ export function Sidebar() {
   const settingsItems = [
     { icon: UsersFour, label: 'Freunde', path: '/friends' },
     { icon: MagicWand, label: 'AI Playlists', path: '/ai-playlists' },
+    { icon: Radio, label: 'Radio Stations', path: '/radio' },
     { icon: Microphone, label: 'Karaoke-Modus', path: '/karaoke' },
     { icon: GameController, label: 'Music Quizzes', path: '/quizzes' },
     { icon: Trophy, label: 'Leaderboards', path: '/leaderboards' },

@@ -212,6 +212,12 @@ export interface IStorage {
   createDownload(download: any): Promise<any>;
   deleteDownload(id: string): Promise<boolean>;
   getUserStorageUsage(userId: string): Promise<number>;
+
+  // ========== PHASE 2.7: CUSTOM RADIO STATIONS ==========
+  getUserRadioStations(userId: string): Promise<any[]>;
+  createRadioStation(station: any): Promise<any>;
+  deleteRadioStation(id: string): Promise<boolean>;
+  updateRadioStationPlayCount(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -696,7 +702,8 @@ import {
   musicQuizzes,
   quizScores,
   generatedPlaylists,
-  offlineDownloads
+  offlineDownloads,
+  customRadioStations
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -1881,6 +1888,37 @@ class DbStorage implements IStorage {
       .where(eq(offlineDownloads.userId, userId));
     
     return downloads.reduce((total, d) => total + (d.fileSizeBytes || 0), 0);
+  }
+
+  // ========== PHASE 2.7: CUSTOM RADIO STATIONS ==========
+  async getUserRadioStations(userId: string): Promise<any[]> {
+    const stations = await db.select()
+      .from(customRadioStations)
+      .where(eq(customRadioStations.userId, userId))
+      .orderBy(desc(customRadioStations.createdAt));
+    return stations;
+  }
+
+  async createRadioStation(station: any): Promise<any> {
+    const [newStation] = await db.insert(customRadioStations)
+      .values(station)
+      .returning();
+    return newStation;
+  }
+
+  async deleteRadioStation(id: string): Promise<boolean> {
+    await db.delete(customRadioStations)
+      .where(eq(customRadioStations.id, id));
+    return true;
+  }
+
+  async updateRadioStationPlayCount(id: string): Promise<void> {
+    await db.update(customRadioStations)
+      .set({ 
+        playCount: sql`${customRadioStations.playCount} + 1`,
+        lastPlayedAt: new Date()
+      })
+      .where(eq(customRadioStations.id, id));
   }
 }
 
