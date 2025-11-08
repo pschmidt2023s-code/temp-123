@@ -37,6 +37,7 @@ export default function AudioSettings() {
   const [crossfadeDuration, setCrossfadeDuration] = useState(0);
   const [normalizationEnabled, setNormalizationEnabled] = useState(true);
   const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(false);
+  const [vocalReducerEnabled, setVocalReducerEnabled] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -45,6 +46,7 @@ export default function AudioSettings() {
       setCrossfadeDuration(settings.crossfadeDuration || 0);
       setNormalizationEnabled(settings.normalizationEnabled ?? true);
       setSpatialAudioEnabled(settings.spatialAudioEnabled || false);
+      setVocalReducerEnabled(settings.vocalReducerEnabled || false);
     }
   }, [settings]);
 
@@ -69,6 +71,7 @@ export default function AudioSettings() {
       crossfadeDuration,
       normalizationEnabled,
       spatialAudioEnabled,
+      vocalReducerEnabled,
     });
   };
 
@@ -191,6 +194,34 @@ export default function AudioSettings() {
                 data-testid="switch-spatial-audio"
               />
             </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4" data-testid="heading-karaoke">Karaoke-Modus</h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="vocal-reducer">Vocal Reducer</Label>
+                <p className="text-sm text-muted-foreground">
+                  Reduziert Gesang für Karaoke-Erlebnis (funktioniert am besten bei zentrierten Vocals)
+                </p>
+              </div>
+              <Switch
+                id="vocal-reducer"
+                checked={vocalReducerEnabled}
+                onCheckedChange={setVocalReducerEnabled}
+                data-testid="switch-vocal-reducer"
+              />
+            </div>
+
+            {vocalReducerEnabled && (
+              <div className="p-4 bg-primary/10 rounded-md border border-primary/20">
+                <p className="text-sm text-muted-foreground">
+                  🎤 Vocal Reducer aktiviert - Perfekt für Karaoke! Der Effekt wird beim Abspielen angewendet.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 

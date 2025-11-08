@@ -282,6 +282,7 @@ export const audioSettings = pgTable("audio_settings", {
   crossfadeDuration: integer("crossfade_duration").default(0), // 0-12 seconds
   normalizationEnabled: boolean("normalization_enabled").default(true),
   spatialAudioEnabled: boolean("spatial_audio_enabled").default(false),
+  vocalReducerEnabled: boolean("vocal_reducer_enabled").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
