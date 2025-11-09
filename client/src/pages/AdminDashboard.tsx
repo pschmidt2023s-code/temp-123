@@ -366,12 +366,11 @@ function UsersTab() {
 
   const updateSubscription = useMutation({
     mutationFn: async ({ userId, tier, status, endDate }: any) => {
-      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/subscription`, {
+      return await apiRequest('PATCH', `/api/admin/users/${userId}/subscription`, {
         tier,
         status,
         endDate,
       });
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -602,7 +601,10 @@ function CouponsTab() {
 
   const createCoupon = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('POST', '/api/admin/coupons', data);
+      return apiRequest('/api/admin/coupons', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
@@ -623,7 +625,10 @@ function CouponsTab() {
 
   const updateCoupon = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Coupon> }) => {
-      return apiRequest('PATCH', `/api/admin/coupons/${id}`, data);
+      return apiRequest(`/api/admin/coupons/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
@@ -636,7 +641,9 @@ function CouponsTab() {
 
   const deleteCoupon = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/admin/coupons/${id}`);
+      return apiRequest(`/api/admin/coupons/${id}`, {
+        method: 'DELETE',
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });

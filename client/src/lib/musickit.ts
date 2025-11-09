@@ -18,7 +18,7 @@ class MusicKitService {
         await window.MusicKit.configure({
           developerToken: import.meta.env.VITE_MK_DEV_TOKEN || 'demo',
           app: {
-            name: 'GlassBeats',
+            name: 'SoundVista',
             build: '1.0.0',
           },
         });

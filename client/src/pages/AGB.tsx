@@ -28,7 +28,7 @@ export default function AGB() {
             <div className="space-y-3 text-muted-foreground">
               <p>
                 (1) Diese Allgemeinen Geschäftsbedingungen (nachfolgend „AGB") gelten für alle Verträge über die 
-                Nutzung des Musik-Streaming-Dienstes GlassBeats zwischen der GlassBeats GmbH (nachfolgend „Anbieter" 
+                Nutzung des Musik-Streaming-Dienstes SoundVista zwischen der SoundVista GmbH (nachfolgend „Anbieter" 
                 oder „wir") und dem Nutzer (nachfolgend „Nutzer" oder „Sie").
               </p>
               <p>
@@ -42,7 +42,7 @@ export default function AGB() {
             <h2 className="text-2xl font-semibold mb-4">§ 2 Leistungsumfang</h2>
             <div className="space-y-3 text-muted-foreground">
               <p>
-                (1) GlassBeats bietet einen Musik-Streaming-Dienst mit Zugang zu über 100 Millionen Songs, Playlists, 
+                (1) SoundVista bietet einen Musik-Streaming-Dienst mit Zugang zu über 100 Millionen Songs, Playlists, 
                 Radio-Stationen und weiteren Funktionen.
               </p>
               <p>
@@ -66,7 +66,7 @@ export default function AGB() {
                 (3) Der konkrete Leistungsumfang des jeweiligen Abonnements ergibt sich aus der aktuellen 
                 Leistungsbeschreibung auf unserer Website unter{' '}
                 <Link href="/pricing" className="text-primary hover:underline">
-                  www.glassbeats.de/pricing
+                  www.soundvista.de/pricing
                 </Link>.
               </p>
               <p>
@@ -141,8 +141,8 @@ export default function AGB() {
               </p>
               <p>
                 (3) Die Kündigung erfolgt über die Kontoeinstellungen auf der Website oder per E-Mail an 
-                <a href="mailto:kuendigung@glassbeats.de" className="text-primary hover:underline ml-1">
-                  kuendigung@glassbeats.de
+                <a href="mailto:kuendigung@soundvista.de" className="text-primary hover:underline ml-1">
+                  kuendigung@soundvista.de
                 </a>.
               </p>
               <p>
@@ -165,8 +165,8 @@ export default function AGB() {
               <p>
                 (2) Um das Widerrufsrecht auszuüben, muss der Nutzer uns mittels einer eindeutigen Erklärung 
                 (z.B. per E-Mail an{' '}
-                <a href="mailto:widerruf@glassbeats.de" className="text-primary hover:underline">
-                  widerruf@glassbeats.de
+                <a href="mailto:widerruf@soundvista.de" className="text-primary hover:underline">
+                  widerruf@soundvista.de
                 </a>) über seinen Entschluss, diesen Vertrag zu widerrufen, informieren.
               </p>
               <p>
@@ -295,8 +295,8 @@ export default function AGB() {
               <p>Bei Fragen zu unseren AGB kontaktieren Sie uns gerne:</p>
               <p>
                 E-Mail:{' '}
-                <a href="mailto:agb@glassbeats.de" className="text-primary hover:underline">
-                  agb@glassbeats.de
+                <a href="mailto:agb@soundvista.de" className="text-primary hover:underline">
+                  agb@soundvista.de
                 </a>
               </p>
               <p>

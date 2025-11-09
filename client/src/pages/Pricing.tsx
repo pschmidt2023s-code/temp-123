@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@shared/schema';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { loadStripe } from '@stripe/stripe-js';
@@ -28,10 +28,36 @@ export default function Pricing() {
   const [couponError, setCouponError] = useState('');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showGiftCardDialog, setShowGiftCardDialog] = useState(false);
+  const [showGiftCardPaymentDialog, setShowGiftCardPaymentDialog] = useState(false);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
   const [selectedGiftTier, setSelectedGiftTier] = useState<SubscriptionTier | null>(null);
   const [giftCardEmail, setGiftCardEmail] = useState('');
   const [generatedGiftCard, setGeneratedGiftCard] = useState<{code: string; link: string} | null>(null);
+
+  // Check for gift card success on component mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const giftCardSuccess = params.get('gift_card_success');
+    const sessionId = params.get('session_id');
+
+    if (giftCardSuccess === 'true' && sessionId) {
+      // Fetch gift card by session ID
+      apiRequest<{code: string; link: string}>('GET', `/api/gift-cards/by-session/${sessionId}`)
+        .then((data) => {
+          setGeneratedGiftCard(data);
+          setShowGiftCardDialog(true);
+          // Clean up URL
+          window.history.replaceState({}, '', '/pricing');
+        })
+        .catch((error) => {
+          toast({
+            title: 'Fehler',
+            description: 'Gutscheinkarte konnte nicht abgerufen werden',
+            variant: 'destructive',
+          });
+        });
+    }
+  }, [toast]);
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -164,20 +190,38 @@ export default function Pricing() {
       return;
     }
 
-    try {
-      const duration = billingPeriod === 'monthly' ? 1 : 12;
-      const result = await apiRequest<{ code: string; link: string }>('POST', '/api/gift-cards/purchase', {
-        tier: selectedGiftTier,
-        durationMonths: duration,
-        recipientEmail: giftCardEmail,
-        userId,
-      });
+    // Show payment selection dialog
+    setShowGiftCardPaymentDialog(true);
+  };
 
-      setGeneratedGiftCard(result);
-      toast({
-        title: 'Gutscheinkarte erstellt!',
-        description: `Link wurde an ${giftCardEmail} gesendet`,
-      });
+  const handleGiftCardPayment = async (paymentMethod: 'stripe' | 'paypal') => {
+    if (!selectedGiftTier || !giftCardEmail.trim()) return;
+
+    try {
+      setShowGiftCardPaymentDialog(false);
+      const duration = billingPeriod === 'monthly' ? 1 : 12;
+      
+      if (paymentMethod === 'stripe') {
+        // For gift cards, we'll create a Stripe checkout session
+        const data = await apiRequest<{ success?: boolean; url?: string }>('POST', '/api/create-gift-card-checkout', {
+          tier: selectedGiftTier,
+          durationMonths: duration,
+          recipientEmail: giftCardEmail,
+          userId,
+        });
+
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      } else {
+        // PayPal not yet implemented for gift cards
+        toast({
+          title: 'Nicht verfügbar',
+          description: 'PayPal-Zahlung für Gutscheinkarten ist derzeit nicht verfügbar. Bitte nutzen Sie Stripe.',
+          variant: 'destructive',
+        });
+        setShowGiftCardPaymentDialog(true);
+      }
     } catch (error: any) {
       toast({
         title: 'Fehler',
@@ -536,6 +580,39 @@ export default function Pricing() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGiftCardPaymentDialog} onOpenChange={setShowGiftCardPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zahlungsmethode wählen</DialogTitle>
+            <DialogDescription>
+              {selectedGiftTier && `Gutscheinkarte ${SUBSCRIPTION_TIERS[selectedGiftTier].name} - ${getPrice(selectedGiftTier).toFixed(2)}€`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              className="w-full h-16 text-lg"
+              variant="outline"
+              onClick={() => handleGiftCardPayment('stripe')}
+              data-testid="button-gift-pay-stripe"
+            >
+              <CreditCard size={24} weight="bold" className="mr-3" />
+              Kreditkarte / Stripe
+            </Button>
+            <Button
+              className="w-full h-16 text-lg"
+              variant="outline"
+              onClick={() => handleGiftCardPayment('paypal')}
+              data-testid="button-gift-pay-paypal"
+            >
+              <svg className="mr-3" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .76-.64h8.462c1.656 0 3.13.326 4.13 1.14.926.753 1.393 1.897 1.393 3.402 0 2.653-1.09 4.52-3.24 5.553-1.12.537-2.55.806-4.252.806H9.906l-1.274 7.356a.641.641 0 0 1-.633.74h-.923zm9.652-14.27c-.853-.71-2.202-1.067-4.013-1.067H8.912a.515.515 0 0 0-.508.427l-.862 4.976h3.277c1.42 0 2.557-.222 3.383-.66 1.526-.806 2.298-2.203 2.298-4.152 0-1.253-.387-2.134-1.172-2.524z"/>
+              </svg>
+              PayPal
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

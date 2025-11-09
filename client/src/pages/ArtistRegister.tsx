@@ -225,7 +225,7 @@ export default function ArtistRegister() {
             </div>
             <CardTitle className="text-2xl">Künstler-Registrierung</CardTitle>
             <CardDescription>
-              Erstellen Sie Ihr GlassBeats Künstlerprofil
+              Erstellen Sie Ihr SoundVista Künstlerprofil
             </CardDescription>
             {link.artistName && (
               <p className="text-sm text-primary mt-2">

@@ -31,7 +31,7 @@ export default function Liked() {
             Deine Lieblingssongs
           </h1>
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">GlassBeats</span>
+            <span className="font-medium">SoundVista</span>
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground" data-testid="text-liked-count">
               {likedTracks.length} Songs

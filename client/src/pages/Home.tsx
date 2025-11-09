@@ -2,11 +2,13 @@ import { Card } from '@/components/Card';
 import { useLocation } from 'wouter';
 import { demoAlbums, demoPlaylists, demoTracks } from '@/lib/demo-data';
 import { usePlayer } from '@/store/usePlayer';
+import { useAIPersonalization } from '@/hooks/useAIPersonalization';
 import { musicKit } from '@/lib/musickit';
 import { useState, useEffect } from 'react';
 import type { MKMediaItem, Release } from '@shared/schema';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveSectionHeader } from '@/components/ResponsivePageHeader';
+import { Badge } from '@/components/ui/badge';
 
 function convertReleaseToMKItem(release: Release): MKMediaItem {
   return {
@@ -33,11 +35,13 @@ function convertReleaseToMKItem(release: Release): MKMediaItem {
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { setQueue } = usePlayer();
+  const { setQueue, setCurrentVideoId } = usePlayer();
+  const { personalizeReleases, hasPreferences } = useAIPersonalization();
   
   const [recentlyPlayed, setRecentlyPlayed] = useState<MKMediaItem[]>([]);
   const [recommendations, setRecommendations] = useState<MKMediaItem[]>([]);
   const [newReleases, setNewReleases] = useState<MKMediaItem[]>([]);
+  const [youtubeNewVideos, setYoutubeNewVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const { data: dbReleases = [] } = useQuery<Release[]>({
@@ -103,10 +107,29 @@ export default function Home() {
       const convertedDbReleases = dbReleases.map(convertReleaseToMKItem);
       setNewReleases(prev => {
         const mkReleases = prev.filter(item => !convertedDbReleases.find(r => r.id === item.id));
-        return [...convertedDbReleases, ...mkReleases];
+        const allReleases = [...convertedDbReleases, ...mkReleases];
+        // Personalize based on AI preferences
+        return personalizeReleases(allReleases);
       });
     }
   }, [dbReleases]);
+
+  // Fetch YouTube new music videos
+  useEffect(() => {
+    const fetchYouTubeNewReleases = async () => {
+      try {
+        const response = await fetch('/api/youtube/search?q=new music 2024 official&maxResults=12');
+        if (response.ok) {
+          const data = await response.json();
+          setYoutubeNewVideos(data.videos || []);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch YouTube new releases:', error);
+      }
+    };
+
+    fetchYouTubeNewReleases();
+  }, []);
 
   const handleItemClick = (item: MKMediaItem) => {
     if (item.type === 'albums') {
@@ -206,13 +229,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* New Releases */}
+      {/* New Releases - AI Personalized */}
       <section className="mb-8">
-        <ResponsiveSectionHeader 
-          title="Neuerscheinungen" 
-          testId="text-section-new"
-          className="mb-4"
-        />
+        <div className="flex items-center gap-2 mb-4">
+          <ResponsiveSectionHeader 
+            title="Neuerscheinungen" 
+            testId="text-section-new"
+            className="mb-0"
+          />
+          {hasPreferences && (
+            <Badge variant="secondary" className="text-xs">
+              Für dich
+            </Badge>
+          )}
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {newReleases.map((item) => (
             <Card
@@ -223,6 +253,41 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* YouTube New Music Videos - Vertical List */}
+      {youtubeNewVideos.length > 0 && (
+        <section className="mb-8">
+          <ResponsiveSectionHeader 
+            title="Neue Musikvideos" 
+            testId="text-section-youtube-new"
+            className="mb-4"
+          />
+          <div className="space-y-2">
+            {youtubeNewVideos.slice(0, 12).map((video: any, index: number) => (
+              <div
+                key={video.videoId}
+                onClick={() => setCurrentVideoId(video.videoId)}
+                className="glass rounded-lg p-3 hover-elevate cursor-pointer group flex items-center gap-3"
+                data-testid={`youtube-new-${index}`}
+              >
+                <img
+                  src={video.thumbnailUrl}
+                  alt={video.title}
+                  className="w-16 h-16 rounded object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                    {video.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {video.channelTitle}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

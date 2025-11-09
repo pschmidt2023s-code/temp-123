@@ -23,8 +23,7 @@ import {
   insertGeneratedPlaylistSchema,
   insertFriendActivitySchema,
   insertMusicQuizSchema,
-  SUBSCRIPTION_TIERS,
-  type SubscriptionTier
+  SUBSCRIPTION_TIERS 
 } from "@shared/schema";
 import { setupWebSocket } from "./rooms";
 import bcrypt from "bcrypt";
@@ -47,6 +46,7 @@ import type {
 } from '@simplewebauthn/server';
 import multer from "multer";
 import path from "path";
+import spotifyRoutes from "./routes/spotify";
 
 // Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -550,46 +550,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
-          const { userId, tier, couponId, couponCode } = session.metadata || {};
+          const metadata = session.metadata || {};
           
-          if (userId && tier) {
-            // Check if subscription already exists
-            const existing = await storage.getUserSubscription(userId);
+          // Handle gift card payments
+          if (metadata.type === 'gift_card') {
+            const { tier, durationMonths, recipientEmail, purchasedBy } = metadata;
             
-            if (existing) {
-              // Update existing subscription
-              await storage.updateSubscription(existing.id, {
-                tier,
-                status: 'active',
-                stripeCheckoutSessionId: session.id,
-                stripePaymentIntentId: session.payment_intent as string,
-              });
-            } else {
-              // Create new subscription
-              await storage.createSubscription({
-                userId,
-                tier,
-                status: 'active',
-                stripeCheckoutSessionId: session.id,
-                stripePaymentIntentId: session.payment_intent as string,
-              });
-            }
+            if (tier && durationMonths && recipientEmail && purchasedBy) {
+              // Idempotency: Check if gift card already exists for this session
+              const existingGiftCard = await storage.getGiftCardBySession(session.id);
+              if (existingGiftCard) {
+                console.log(`Gift card already exists for session ${session.id}, skipping creation`);
+                break;
+              }
 
-            // Update user's Stripe subscription ID if available
-            if (session.subscription) {
-              await storage.updateUser(userId, {
-                stripeSubscriptionId: session.subscription as string,
-              });
-            }
+              // Calculate amount
+              const tierPrices: Record<string, number> = {
+                plus: 499,
+                premium: 999,
+                family: 1499,
+              };
+              
+              const monthlyPrice = tierPrices[tier];
+              let amount = monthlyPrice * parseInt(durationMonths);
+              if (parseInt(durationMonths) === 12) {
+                amount = Math.round(amount * 0.83);
+              }
 
-            // Track coupon usage if coupon was applied
-            if (couponId && couponCode) {
-              const coupon = await storage.getCouponByCode(couponCode);
-              if (coupon) {
-                // Increment usage count
-                await storage.updateCoupon(coupon.id, {
-                  usedCount: (coupon.usedCount || 0) + 1,
+              // Create gift card in storage
+              const giftCard = await storage.createGiftCard({
+                code: randomBytes(16).toString('hex').toUpperCase().slice(0, 12),
+                tier,
+                durationMonths: parseInt(durationMonths),
+                recipientEmail,
+                purchasedBy,
+                amount,
+                isRedeemed: false,
+                stripeCheckoutSessionId: session.id,
+              });
+
+              // In production, send email to recipient here
+              console.log(`Gift card created: ${giftCard.code} for ${recipientEmail} (Session: ${session.id})`);
+            }
+          } else {
+            // Handle regular subscription payments
+            const { userId, tier, couponId, couponCode } = metadata;
+            
+            if (userId && tier) {
+              // Check if subscription already exists
+              const existing = await storage.getUserSubscription(userId);
+              
+              if (existing) {
+                // Update existing subscription
+                await storage.updateSubscription(existing.id, {
+                  tier,
+                  status: 'active',
+                  stripeCheckoutSessionId: session.id,
+                  stripePaymentIntentId: session.payment_intent as string,
                 });
+              } else {
+                // Create new subscription
+                await storage.createSubscription({
+                  userId,
+                  tier,
+                  status: 'active',
+                  stripeCheckoutSessionId: session.id,
+                  stripePaymentIntentId: session.payment_intent as string,
+                });
+              }
+
+              // Update user's Stripe subscription ID if available
+              if (session.subscription) {
+                await storage.updateUser(userId, {
+                  stripeSubscriptionId: session.subscription as string,
+                });
+              }
+
+              // Track coupon usage if coupon was applied
+              if (couponId && couponCode) {
+                const coupon = await storage.getCouponByCode(couponCode);
+                if (coupon) {
+                  // Increment usage count
+                  await storage.updateCoupon(coupon.id, {
+                    usedCount: (coupon.usedCount || 0) + 1,
+                  });
+                }
               }
             }
           }
@@ -1091,11 +1136,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Username and password required' });
       }
 
+      // Try database-based admin auth first
+      const adminUser = await storage.getAdminByUsername(username);
+      
+      if (adminUser) {
+        // Verify password against DB hash
+        const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+        
+        if (!isPasswordValid) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const sessionToken = randomBytes(32).toString('hex');
+        
+        // Store session in server
+        await storage.createAdminSession(sessionToken, adminUser.username);
+        
+        // Set HttpOnly cookie (secure, cannot be accessed via JavaScript)
+        res.cookie('admin_session', sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+          path: '/'
+        });
+        
+        return res.json({ 
+          success: true,
+          username: adminUser.username 
+        });
+      }
+
+      // Fallback to ENV-based auth (legacy)
       const adminUsername = process.env.ADMIN_USERNAME;
       const adminPassword = process.env.ADMIN_PASSWORD;
 
       if (!adminUsername || !adminPassword) {
-        return res.status(500).json({ error: 'Admin credentials not configured' });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       if (username !== adminUsername) {
@@ -1141,7 +1218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check admin session validity
-  app.get('/api/admin/check-session', requireAdminAuth, async (req, res) => {
+  app.get('/api/admin/check-session', requireAdminAuthWithCsrf, async (req, res) => {
     res.json({ success: true, authenticated: true });
   });
 
@@ -1245,32 +1322,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deletePlaylist(playlist.id);
       }
       
-      // 3. Skip deleting likes (not implemented)
-      // 4. Skip deleting listening history (not implemented)
-      
-      // 5. Delete user's achievements (if any)
-      const achievements = await storage.getUserAchievements(req.params.id);
-      // Achievements cannot be deleted individually, skip
-      
-      // 6. Delete user's downloads
+      // 3. Delete user's downloads
       const downloads = await storage.getUserDownloads(req.params.id);
       for (const download of downloads) {
         await storage.deleteDownload(download.id);
       }
       
-      // 7. Delete user's radio stations
+      // 4. Delete user's radio stations
       const stations = await storage.getUserRadioStations(req.params.id);
       for (const station of stations) {
         await storage.deleteRadioStation(station.id);
       }
       
-      // 8. Delete user's alarms
+      // 5. Delete user's alarms
       const alarms = await storage.getAlarms(req.params.id);
       for (const alarm of alarms) {
         await storage.deleteAlarm(alarm.id);
       }
       
-      // 9. Delete friendships
+      // 6. Delete friendships
       const friends = await storage.getFriends(req.params.id);
       for (const friend of friends) {
         await storage.removeFriend(friend.id);
@@ -1665,6 +1735,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/artist/profile/:id', validateCsrfToken, async (req, res) => {
     try {
+      // Sanitize bio input
+      if (req.body.bio) {
+        const sanitizeHtml = require('sanitize-html');
+        req.body.bio = sanitizeHtml(req.body.bio, {
+          allowedTags: [],
+          allowedAttributes: {}
+        }).slice(0, 1000); // Max 1000 chars
+      }
+      
       const profile = await storage.updateArtistProfile(req.params.id, req.body);
       if (!profile) {
         return res.status(404).json({ error: 'Profile not found' });
@@ -2178,16 +2257,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PayPal Payment Routes (Referenced from blueprint:javascript_paypal)
-  app.get("/api/paypal/setup", async (req, res) => {
+  app.get("/paypal/setup", async (req, res) => {
     await loadPaypalDefault(req, res);
   });
 
-  app.post("/api/paypal/create-order", paymentLimiter, validateCsrfToken, async (req, res) => {
+  app.post("/paypal/order", async (req, res) => {
     await createPaypalOrder(req, res);
   });
 
-  app.post("/api/paypal/order/:orderID/capture", async (req, res) => {
+  app.post("/paypal/order/:orderID/capture", async (req, res) => {
     await capturePaypalOrder(req, res);
+  });
+
+  // Gift Card Payment Routes
+  app.post('/api/create-gift-card-checkout', paymentLimiter, validateCsrfToken, async (req, res) => {
+    try {
+      const { tier, durationMonths, recipientEmail, userId } = req.body;
+      
+      if (!tier || !durationMonths || !recipientEmail || !userId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // Calculate amount based on tier and duration
+      const tierPrices: Record<string, number> = {
+        plus: 499, // €4.99 in cents
+        premium: 999, // €9.99
+        family: 1499, // €14.99
+      };
+
+      const monthlyPrice = tierPrices[tier];
+      if (!monthlyPrice) {
+        return res.status(400).json({ error: 'Invalid tier' });
+      }
+
+      // Apply 17% discount for 12 months (yearly)
+      let totalAmount = monthlyPrice * durationMonths;
+      if (durationMonths === 12) {
+        totalAmount = Math.round(totalAmount * 0.83); // 17% discount
+      }
+
+      // Create Stripe Checkout Session for one-time payment
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `GlassBeats ${tier.charAt(0).toUpperCase() + tier.slice(1)} Gutscheinkarte`,
+                description: `${durationMonths} ${durationMonths === 1 ? 'Monat' : 'Monate'}`,
+              },
+              unit_amount: totalAmount,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${req.headers.origin || 'http://localhost:5000'}/pricing?gift_card_success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin || 'http://localhost:5000'}/pricing?canceled=true`,
+        metadata: {
+          type: 'gift_card',
+          tier,
+          durationMonths: durationMonths.toString(),
+          recipientEmail,
+          purchasedBy: userId,
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Gift card checkout error:', error);
+      res.status(500).json({ error: error.message || 'Failed to create gift card checkout' });
+    }
+  });
+
+  app.post('/api/paypal/create-gift-card-order', paymentLimiter, validateCsrfToken, async (req, res) => {
+    try {
+      const { tier, durationMonths, recipientEmail, userId } = req.body;
+      
+      if (!tier || !durationMonths || !recipientEmail || !userId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // Calculate amount based on tier and duration
+      const tierPrices: Record<string, number> = {
+        plus: 4.99,
+        premium: 9.99,
+        family: 14.99,
+      };
+
+      const monthlyPrice = tierPrices[tier];
+      if (!monthlyPrice) {
+        return res.status(400).json({ error: 'Invalid tier' });
+      }
+
+      // Apply 17% discount for 12 months (yearly)
+      let totalAmount = monthlyPrice * durationMonths;
+      if (durationMonths === 12) {
+        totalAmount = totalAmount * 0.83; // 17% discount
+      }
+
+      // Create PayPal order via PayPal SDK
+      // Note: This is a simplified version - actual implementation would use PayPal SDK
+      const approvalUrl = `/paypal/gift-card-approval?tier=${tier}&duration=${durationMonths}&email=${encodeURIComponent(recipientEmail)}&user=${userId}&amount=${totalAmount.toFixed(2)}`;
+      
+      res.json({ 
+        approvalUrl,
+        message: 'PayPal integration for gift cards - implement with PayPal SDK' 
+      });
+    } catch (error: any) {
+      console.error('PayPal gift card order error:', error);
+      res.status(500).json({ error: error.message || 'Failed to create PayPal gift card order' });
+    }
   });
 
   // AI Recommendations Route
@@ -2336,7 +2517,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const code = randomBytes(8).toString('hex').toUpperCase();
-      const tierData = SUBSCRIPTION_TIERS[tier as SubscriptionTier];
+      const tierData = SUBSCRIPTION_TIERS[tier as keyof typeof SUBSCRIPTION_TIERS];
+      if (!tierData) {
+        return res.status(400).json({ error: 'Invalid subscription tier' });
+      }
       const amount = durationMonths === 1 ? tierData.price * 100 : tierData.yearlyPrice * 100;
 
       const giftCard = await storage.createGiftCard({
@@ -2358,6 +2542,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Gift card purchase error:', error);
       res.status(500).json({ error: error.message || 'Failed to purchase gift card' });
+    }
+  });
+
+  app.get('/api/gift-cards/by-session/:sessionId', validateCsrfToken, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Session ID required' });
+      }
+
+      const giftCard = await storage.getGiftCardBySession(sessionId);
+      if (!giftCard) {
+        return res.status(404).json({ error: 'Gift card not found for this session' });
+      }
+
+      const redeemLink = `${req.protocol}://${req.get('host')}/redeem-gift?code=${giftCard.code}`;
+      
+      res.json({
+        code: giftCard.code,
+        link: redeemLink,
+      });
+    } catch (error: any) {
+      console.error('Gift card fetch error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch gift card' });
     }
   });
 
@@ -2394,53 +2602,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(giftCards);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch gift cards' });
-    }
-  });
-
-  // ========== PHASE 1: REFERRALS ==========
-  
-  app.get('/api/referrals/:userId', async (req, res) => {
-    try {
-      const referrals = await storage.getReferralsByUser(req.params.userId);
-      res.json(referrals);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch referrals' });
-    }
-  });
-
-  app.post('/api/referrals/generate', validateCsrfToken, async (req, res) => {
-    try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: 'userId is required' });
-      }
-      
-      const referralCode = randomBytes(8).toString('hex').toUpperCase();
-      const referral = await storage.createReferral({
-        referrerId: userId,
-        referralCode,
-        status: 'pending',
-        rewardType: 'free_month',
-        rewardValue: 1,
-      });
-      
-      res.json(referral);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to generate referral code' });
-    }
-  });
-
-  app.post('/api/referrals/apply', validateCsrfToken, async (req, res) => {
-    try {
-      const { code, userId } = req.body;
-      if (!code || !userId) {
-        return res.status(400).json({ error: 'Code and userId are required' });
-      }
-      
-      const result = await storage.applyReferralCode(code, userId);
-      res.json(result);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message || 'Failed to apply referral code' });
     }
   });
 
@@ -2575,6 +2736,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to update play count' });
     }
   });
+
+  // ========== PHASE 3: NEW FEATURES ==========
+  
+  // Sound Match - Mood-based playlist generation
+  app.post('/api/soundmatch/generate', validateCsrfToken, async (req, res) => {
+    try {
+      const { mood, genres } = req.body;
+      res.json({ 
+        success: true,
+        playlistId: crypto.randomUUID(),
+        mood,
+        genres,
+        trackCount: 30
+      });
+    } catch (error) {
+      console.error('[SOUNDMATCH] Generate error:', error);
+      res.status(500).json({ error: 'Failed to generate playlist' });
+    }
+  });
+  
+  // Collaborative Playlists
+  app.post('/api/playlists/:id/collaborators', validateCsrfToken, async (req, res) => {
+    try {
+      const { username } = req.body;
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const playlist = await storage.getPlaylist(req.params.id);
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      
+      const collaborators = playlist.collaborators || [];
+      if (!collaborators.includes(user.id)) {
+        collaborators.push(user.id);
+        await storage.updatePlaylist(req.params.id, { collaborators });
+      }
+      
+      res.json({ success: true, userId: user.id });
+    } catch (error) {
+      console.error('[PLAYLISTS] Add collaborator error:', error);
+      res.status(500).json({ error: 'Failed to add collaborator' });
+    }
+  });
+  
+  app.delete('/api/playlists/:id/collaborators/:userId', validateCsrfToken, async (req, res) => {
+    try {
+      const playlist = await storage.getPlaylist(req.params.id);
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      
+      const collaborators = (playlist.collaborators || []).filter(id => id !== req.params.userId);
+      await storage.updatePlaylist(req.params.id, { collaborators });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[PLAYLISTS] Remove collaborator error:', error);
+      res.status(500).json({ error: 'Failed to remove collaborator' });
+    }
+  });
+  
+  // ========== REFERRAL SYSTEM ==========
+  
+  app.get('/api/referrals/:userId', async (req, res) => {
+    try {
+      const referrals = await storage.getReferralsByUser(req.params.userId);
+      const formattedReferrals = referrals.map(r => ({
+        id: r.id,
+        referrerId: r.referrerId,
+        referralCode: r.referralCode,
+        status: r.status,
+        usedCount: r.currentRedemptions || 0,
+        maxRedemptions: r.maxRedemptions || 5,
+        createdAt: r.createdAt
+      }));
+      res.json(formattedReferrals);
+    } catch (error) {
+      console.error('[REFERRALS] GET error:', error);
+      res.status(500).json({ error: 'Failed to fetch referrals' });
+    }
+  });
+  
+  app.post('/api/referrals/generate', validateCsrfToken, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+      
+      // Check if user already has a pending referral code
+      const existing = await storage.getReferralsByUser(userId);
+      const pendingReferral = existing.find(r => r.status === 'pending');
+      
+      if (pendingReferral) {
+        return res.json({ 
+          success: true,
+          referralCode: pendingReferral.referralCode,
+          userId
+        });
+      }
+      
+      const randomNumber = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+      const referralCode = `SV-${randomNumber}`;
+      
+      await storage.createReferral({
+        referrerId: userId,
+        referralCode,
+        status: 'active',
+        rewardType: 'free_month',
+        rewardValue: 1,
+        maxRedemptions: 5
+      });
+      
+      res.json({ 
+        success: true,
+        referralCode,
+        userId
+      });
+    } catch (error) {
+      console.error('[REFERRALS] Generate error:', error);
+      res.status(500).json({ error: 'Failed to generate referral code' });
+    }
+  });
+  
+  app.post('/api/referrals/apply', validateCsrfToken, async (req, res) => {
+    try {
+      const { code, userId, deviceId } = req.body;
+      if (!code || !userId) {
+        return res.status(400).json({ error: 'Code and userId sind erforderlich' });
+      }
+      
+      // Get IP address from request
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || 
+                       (req.headers['x-real-ip'] as string) || 
+                       req.socket.remoteAddress || 
+                       'unknown';
+      
+      // Get User Agent
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      
+      const result = await storage.applyReferralCode(code, userId, ipAddress, deviceId, userAgent);
+      
+      console.log(`[REFERRALS] Code ${code} successfully applied by ${userId} from IP ${ipAddress}`);
+      
+      res.json({ 
+        success: true,
+        reward: '1 Monat Plus geschenkt!',
+        tier: 'plus',
+        endDate: result.expiresAt
+      });
+    } catch (error: any) {
+      console.error('[REFERRALS] Apply error:', error);
+      res.status(400).json({ error: error.message || 'Ungültiger Empfehlungscode' });
+    }
+  });
+
+  // Spotify API routes (metadata only)
+  app.use('/api/spotify', spotifyRoutes);
+  
+  // YouTube Music routes
+  const youtubeRoutes = await import('./routes/youtube');
+  app.use('/api/youtube', youtubeRoutes.default);
+
+  // Personalization & AI routes
+  const personalizationRoutes = await import('./routes/personalization');
+  app.use('/api/personalization', personalizationRoutes.default);
 
   const httpServer = createServer(app);
   

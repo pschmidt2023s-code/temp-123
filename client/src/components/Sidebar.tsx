@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { House, MagnifyingGlass, Books, Plus, Heart, Users, Equalizer, Alarm, ChartBar, Gift, UsersFour, MagicWand, Microphone, GameController, Trophy, DownloadSimple, Radio, Car, SpeakerHigh } from '@phosphor-icons/react/dist/ssr';
+import { House, MagnifyingGlass, Books, Plus, Heart, Users, User, Gift, MagicWand, GameController, Trophy, Radio, SpotifyLogo, YoutubeLogo } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -28,18 +28,12 @@ export function Sidebar() {
   ];
 
   const settingsItems = [
-    { icon: UsersFour, label: 'Freunde', path: '/friends' },
+    { icon: User, label: 'Mein Konto', path: '/account' },
+    { icon: SpotifyLogo, label: 'Spotify Import', path: '/spotify' },
     { icon: MagicWand, label: 'AI Playlists', path: '/ai-playlists' },
     { icon: Radio, label: 'Radio Stations', path: '/radio' },
-    { icon: Microphone, label: 'Karaoke-Modus', path: '/karaoke' },
     { icon: GameController, label: 'Music Quizzes', path: '/quizzes' },
     { icon: Trophy, label: 'Leaderboards', path: '/leaderboards' },
-    { icon: DownloadSimple, label: 'Downloads', path: '/downloads' },
-    { icon: Car, label: 'Car Mode', path: '/car-mode' },
-    { icon: SpeakerHigh, label: 'Sprachsteuerung', path: '/voice' },
-    { icon: Equalizer, label: 'Audio-Einstellungen', path: '/audio-settings' },
-    { icon: Alarm, label: 'Wecker & Timer', path: '/alarms' },
-    { icon: ChartBar, label: 'Meine Statistiken', path: '/stats' },
     { icon: Gift, label: 'Geschenke & Codes', path: '/rewards' },
   ];
 
@@ -49,7 +43,7 @@ export function Sidebar() {
       style={{ width: '241px' }}
     >
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-primary" data-testid="text-logo">GlassBeats</h1>
+        <h1 className="text-2xl font-bold text-primary" data-testid="text-logo">SoundVista</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2">
@@ -116,7 +110,7 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border my-4" />
         
         <div className="mb-2 px-4">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Einstellungen</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Features</h2>
         </div>
 
         <div className="space-y-1">

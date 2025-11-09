@@ -54,7 +54,7 @@ export default function AdminLogin() {
               <Lock size={32} weight="bold" className="text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">GlassBeats Admin</CardTitle>
+          <CardTitle className="text-2xl font-bold">SoundVista Admin</CardTitle>
           <CardDescription>
             Melden Sie sich mit Ihren Admin-Zugangsdaten an
           </CardDescription>

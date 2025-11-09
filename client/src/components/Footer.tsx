@@ -5,11 +5,16 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <footer 
+      className="border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      style={{
+        paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))'
+      }}
+    >
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-lg font-bold mb-4 text-foreground">GlassBeats</h3>
+            <h3 className="text-lg font-bold mb-4 text-foreground">SoundVista</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Premium Musik-Streaming mit 100 Millionen Songs, Lossless Audio und einzigartigen Social Features.
             </p>
@@ -80,8 +85,8 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <EnvelopeSimple className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <a href="mailto:info@glassbeats.de" className="hover:text-foreground transition-colors">
-                  info@glassbeats.de
+                <a href="mailto:info@soundvista.de" className="hover:text-foreground transition-colors">
+                  info@soundvista.de
                 </a>
               </li>
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -102,29 +107,9 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-border/40">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              © {currentYear} GlassBeats. Alle Rechte vorbehalten.
-            </p>
-            <div className="flex items-center gap-6">
-              <Link href="/impressum" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Impressum
-              </Link>
-              <Link href="/datenschutz" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Datenschutz
-              </Link>
-              <Link href="/agb" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                AGB
-              </Link>
-              <button
-                onClick={() => window.dispatchEvent(new Event('openCookieSettings'))}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="button-footer-cookie-settings"
-              >
-                Cookie-Einstellungen
-              </button>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground text-center">
+            © {currentYear} SoundVista. Alle Rechte vorbehalten.
+          </p>
         </div>
       </div>
     </footer>

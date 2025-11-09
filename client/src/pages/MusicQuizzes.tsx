@@ -20,7 +20,7 @@ export default function MusicQuizzes() {
   const [showResult, setShowResult] = useState(false);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
 
-  const { data: quizzes = [] } = useQuery<any[]>({
+  const { data: quizzes = [] } = useQuery({
     queryKey: ['/api/quizzes'],
   });
 
@@ -287,7 +287,7 @@ export default function MusicQuizzes() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {currentQuestion.options.map((option: string, index: number) => {
+            {currentQuestion.options.map((option, index) => {
               const isSelected = selectedAnswer === index;
               const isCorrectOption = index === currentQuestion.correctIndex;
               const showCorrect = showResult && isCorrectOption;

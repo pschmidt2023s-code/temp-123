@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { MKMediaItem, PlayerState } from '@shared/schema';
 
 interface PlayerStore extends PlayerState {
+  currentVideoId: string | null;
   setQueue: (queue: MKMediaItem[], startIndex?: number) => void;
   play: () => void;
   pause: () => void;
@@ -14,6 +15,7 @@ interface PlayerStore extends PlayerState {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   setPlaying: (playing: boolean) => void;
+  setCurrentVideoId: (videoId: string | null) => void;
 }
 
 export const usePlayer = create<PlayerStore>((set, get) => ({
@@ -25,6 +27,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   volume: 80,
   currentTime: 0,
   duration: 0,
+  currentVideoId: null,
 
   setQueue: (queue, startIndex = 0) => {
     set({ queue, currentIndex: startIndex, currentTime: 0 });
@@ -87,5 +90,9 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
 
   setPlaying: (playing) => {
     set({ isPlaying: playing });
+  },
+
+  setCurrentVideoId: (videoId) => {
+    set({ currentVideoId: videoId });
   },
 }));

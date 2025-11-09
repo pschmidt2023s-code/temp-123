@@ -22,7 +22,7 @@ export default function Impressum() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">Angaben gemäß § 5 TMG</h2>
             <div className="space-y-2 text-muted-foreground">
-              <p className="font-medium text-foreground">GlassBeats GmbH</p>
+              <p className="font-medium text-foreground">SoundVista GmbH</p>
               <p>Musikstraße 42</p>
               <p>10115 Berlin</p>
               <p>Deutschland</p>
@@ -47,14 +47,14 @@ export default function Impressum() {
               </p>
               <p>
                 <strong className="text-foreground">E-Mail:</strong>{' '}
-                <a href="mailto:info@glassbeats.de" className="hover:text-primary transition-colors">
-                  info@glassbeats.de
+                <a href="mailto:info@soundvista.de" className="hover:text-primary transition-colors">
+                  info@soundvista.de
                 </a>
               </p>
               <p>
                 <strong className="text-foreground">Support:</strong>{' '}
-                <a href="mailto:support@glassbeats.de" className="hover:text-primary transition-colors">
-                  support@glassbeats.de
+                <a href="mailto:support@soundvista.de" className="hover:text-primary transition-colors">
+                  support@soundvista.de
                 </a>
               </p>
             </div>

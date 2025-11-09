@@ -16,32 +16,36 @@ export default function Rewards() {
   const [referralCode, setReferralCode] = useState('');
   const [codeCopied, setCodeCopied] = useState(false);
 
-  const { data: referrals = [] } = useQuery({
+  const { data: referrals = [] } = useQuery<any[]>({
     queryKey: ['/api/referrals', userId],
-    queryFn: async () => {
-      const res = await fetch(`/api/referrals/${userId}`);
-      return res.json();
-    },
   });
 
-  const myReferralCode = referrals.find((r: any) => r.status === 'pending')?.referralCode;
+  const myReferralCode = referrals.find((r) => r.status === 'active')?.referralCode;
 
   const generateReferralMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/referrals/generate', 'POST', { userId });
+      const response = await apiRequest('POST', '/api/referrals/generate', { userId });
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/referrals', userId] });
       toast({
         title: 'Empfehlungscode erstellt!',
-        description: 'Teile ihn mit deinen Freunden',
+        description: `Dein Code: ${data.referralCode}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fehler',
+        description: 'Code konnte nicht erstellt werden',
+        variant: 'destructive',
       });
     },
   });
 
   const redeemGiftCardMutation = useMutation({
     mutationFn: async (code: string) => {
-      return apiRequest('/api/gift-cards/redeem', 'POST', { code, userId });
+      return apiRequest('POST', '/api/gift-cards/redeem', { code, userId });
     },
     onSuccess: (data: any) => {
       toast({
@@ -61,14 +65,27 @@ export default function Rewards() {
 
   const applyReferralMutation = useMutation({
     mutationFn: async (code: string) => {
-      return apiRequest('/api/referrals/apply', 'POST', { code, userId });
+      // Generate or retrieve device ID
+      let deviceId = localStorage.getItem('deviceId');
+      if (!deviceId) {
+        deviceId = `device-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+        localStorage.setItem('deviceId', deviceId);
+      }
+      
+      return apiRequest('POST', '/api/referrals/apply', { code, userId, deviceId });
     },
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/referrals'] });
       toast({
         title: 'Empfehlung angenommen!',
         description: data.reward,
       });
       setReferralCode('');
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
@@ -87,7 +104,7 @@ export default function Rewards() {
     setTimeout(() => setCodeCopied(false), 2000);
   };
 
-  const completedReferrals = referrals.filter((r: any) => r.status === 'completed');
+  const usedCount = (referrals && referrals.length > 0 && referrals[0]?.usedCount) || 0;
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -169,8 +186,9 @@ export default function Rewards() {
                   <h3 className="font-medium">So funktioniert's:</h3>
                   <ol className="text-sm text-muted-foreground space-y-1">
                     <li>1. Teile deinen Code mit Freunden</li>
-                    <li>2. Dein Freund erhält <strong>1 Monat Premium gratis</strong></li>
-                    <li>3. Du erhältst <strong>1 Monat gratis</strong> wenn sie sich anmelden</li>
+                    <li>2. Dein Freund erhält <strong>1 Monat Plus gratis</strong></li>
+                    <li>3. Du erhältst <strong>1 Monat Plus gratis</strong> wenn sie sich anmelden</li>
+                    <li>4. Dein Code kann maximal <strong>5 Mal</strong> eingelöst werden</li>
                   </ol>
                 </div>
 
@@ -178,9 +196,13 @@ export default function Rewards() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">Erfolgreiche Empfehlungen</p>
-                      <p className="text-xs text-muted-foreground">Du hast {completedReferrals.length} Freunde geworben</p>
+                      <p className="text-xs text-muted-foreground">
+                        {usedCount} von {referrals[0]?.maxRedemptions || 5} Einlösungen
+                      </p>
                     </div>
-                    <div className="text-2xl font-bold text-primary" data-testid="text-successful-referrals">{completedReferrals.length}</div>
+                    <div className="text-2xl font-bold text-primary" data-testid="text-successful-referrals">
+                      {usedCount}/{referrals[0]?.maxRedemptions || 5}
+                    </div>
                   </div>
                 </Card>
               </div>

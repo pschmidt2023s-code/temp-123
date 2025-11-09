@@ -5,10 +5,22 @@ GlassBeats is a pixel-perfect Spotify UI clone with full Apple Music integration
 
 **Project Status:** All Tier 2 and Tier 3 features complete (31 pages total). Production-ready with comprehensive gamification, social features, creator tools, smart home integration, and bonus features.
 
-**Recent Updates (Nov 8, 2025):**
+**Recent Updates (Nov 9, 2025):**
+- **Freemium Model Implementation**: Complete tier-based system with 30s preview for free users, tier-based advertising (Free=always, Plus=every 5h/20s, Premium/Family=ad-free), AdOverlay & PreviewLimitOverlay components
+- **AI-Powered Personalization**: useAIPersonalization hook analyzes user listening history to personalize "Neuerscheinungen" based on favorite genres/artists, with visual "Für dich" badge
+- **Listening History Tracking**: Automatic tracking of play duration, completion percentage, track type (youtube/apple_music/local), and user behavior for AI analysis
+- **Video/MP3 Toggle**: Player includes toggle button to switch between video and audio modes
+- **UI Improvements**: YouTube videos in vertical list format without branding, integrated as "Weitere Ergebnisse" and "Neue Musikvideos"
+- **Freemium Hooks**: useFreemium hook manages preview limits, ad timing, listening history tracking; automatic 30s playback stop for free tier
+
+**Previous Updates (Nov 8, 2025):**
+- **YouTube Music Integration**: Complete playback system using YouTube Data API v3 with intelligent quota management (10k/day limit protection), embedded IFrame Player, search functionality, track matching, and ad monetization
+- **UX Reorganization**: Consolidated features into unified Account page (/account) with 5 tabs: Profil, Freunde, Downloads, Audio-Einstellungen, Statistiken
+- **Karaoke Integration**: Moved Karaoke mode from standalone page into FullscreenPlayer dropdown menu with 0-100% vocal reduction slider
+- **Voice Search**: Added microphone icon to TopBar search field with Web Speech API integration for hands-free search (de-DE)
+- **Referral System**: Fixed code generation to use SV-XXXXXX format (6-digit numbers only), in-memory storage with Map-based persistence
 - Enhanced Audio Settings: 5-band custom equalizer (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz), Crossfade slider (0-12s), Mono Audio toggle
 - Extended Subscription System: Monthly/Yearly billing toggle with 17% discount on annual plans
-- Gift Card System: Purchase and send gift subscriptions via email with unique redemption codes
 
 ## User Preferences
 Not specified. The agent should infer preferences from the project description.
@@ -53,6 +65,28 @@ Not specified. The agent should infer preferences from the project description.
 - Current time/duration display
 - Fullscreen player with dynamic album art color extraction
 - Beat pulsation effects using Canvas API
+
+**YouTube Music Integration (Primary Playback):**
+- YouTube Data API v3 for video search and metadata (100M+ songs)
+- Intelligent quota management system (10k/day limit protection)
+- Atomic quota reservation prevents race conditions
+- Pre-charging ensures quota alignment with YouTube billing
+- YouTube IFrame Player API for embedded playback
+- Custom player controls (play/pause, volume, seek, mute)
+- Automatic ad monetization (revenue-generating)
+- Track matching: Artist + Title → YouTube video
+- Live quota status display with 30-second refresh
+- Warning system when >90% quota used
+- Rate limiting: 30 requests/minute per IP (increased for concurrent loads)
+- **Seamless UX Integration**: YouTube videos appear in main search results and home page "Neue Musikvideos" section
+- **Error Handling**: User-friendly 429 rate limit messages displayed in glass cards
+- **Player Store Integration**: currentVideoId field tracks YouTube playback state
+- **Hidden Navigation**: Dedicated YouTube Music page (/youtube) still accessible but removed from sidebar
+
+**Spotify Integration (Metadata Only):**
+- Search, playlists, and recommendations
+- No Premium subscription required
+- Metadata import for track information
 
 **Apple Music Integration:**
 - MusicKit Catalog for live data (100M songs)
@@ -102,13 +136,16 @@ Not specified. The agent should infer preferences from the project description.
 - **Artist Registration**: Unique registration links for artist onboarding
 
 **TIER 3 Features - Bonus:**
-- **Audio Settings**: Advanced audio controls (crossfade, gapless, normalization)
-- **Karaoke Mode**: Lyrics display with microphone integration
-- **Rewards**: Gift cards and referral program
-- **Car Mode**: Fullscreen driver-friendly UI with large controls (NEW)
-- **Voice Commands**: Speech Recognition API integration for hands-free control (NEW)
+- **Audio Settings**: Advanced audio controls in Account page (5-band EQ, crossfade 0-12s, mono audio, gapless, normalization)
+- **Karaoke Mode**: Integrated into FullscreenPlayer dropdown with vocal reduction slider (0-100%)
+- **Rewards**: Gift cards and referral program with SV-XXXXXX code generation
+- **Car Mode**: Fullscreen driver-friendly UI with large controls
+- **Voice Search**: Microphone button in TopBar using Web Speech API (de-DE) for hands-free search
 
 ## External Dependencies
+- **YouTube Data API v3**: Primary music playback system with quota management (10k/day). Requires `YOUTUBE_API_KEY`.
+- **YouTube IFrame Player API**: Embedded player for music streaming with automatic ad monetization.
+- **Spotify Web API**: Metadata-only integration for playlists, search, and recommendations. Requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
 - **Apple MusicKit JS v3**: Loaded via CDN for Apple Music integration. Requires `VITE_MK_DEV_TOKEN`.
 - **Tailwind CSS**: For styling and custom design system.
 - **Wouter**: For client-side routing.

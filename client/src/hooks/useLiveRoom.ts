@@ -28,9 +28,21 @@ export function useLiveRoom(roomId: string | null, userId: string, username: str
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const shouldReconnectRef = useRef(true);
+  const maxReconnectAttempts = 5;
 
-  useEffect(() => {
+  const connect = useCallback((isManualJoin = false) => {
     if (!roomId) return;
+    
+    // Only reset attempts on manual join, not on auto-retries
+    if (isManualJoin) {
+      reconnectAttemptsRef.current = 0;
+    }
+    
+    // Enable reconnection for this connection attempt
+    shouldReconnectRef.current = true;
 
     // Create WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -40,6 +52,15 @@ export function useLiveRoom(roomId: string | null, userId: string, username: str
     ws.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+      
+      // Reset retry budget on successful connection (wichtig!)
+      reconnectAttemptsRef.current = 0;
+      
+      // Clear any pending reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       
       // Join room
       ws.send(JSON.stringify({
@@ -118,25 +139,54 @@ export function useLiveRoom(roomId: string | null, userId: string, username: str
     };
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected');
       setIsConnected(false);
+      
+      // Only auto-reconnect if not manually disconnected (verhindert Reconnects nach Unmount)
+      if (shouldReconnectRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        reconnectAttemptsRef.current++;
+        
+        console.log(`WebSocket reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connect();
+        }, delay);
+      } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.warn('WebSocket max reconnect attempts reached');
+      }
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
+  }, [roomId, userId, username]);
+
+  useEffect(() => {
+    connect(true); // Manual join - reset retry budget
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'leave',
-          roomId,
-          userId,
-        }));
+      // Disable reconnection on cleanup (wichtig für Unmount!)
+      shouldReconnectRef.current = false;
+      
+      // Clear pending reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
-      ws.close();
+      
+      // Close WebSocket connection
+      if (wsRef.current) {
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'leave',
+            roomId,
+            userId,
+          }));
+        }
+        wsRef.current.close();
+      }
     };
-  }, [roomId, userId, username]);
+  }, [connect, roomId, userId]);
 
   const sendMessage = useCallback((message: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;

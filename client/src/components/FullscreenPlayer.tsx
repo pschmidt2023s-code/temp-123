@@ -35,6 +35,9 @@ interface FullscreenPlayerProps {
   onClose: () => void;
 }
 
+// Cache für extrahierte Farben (Akku-Optimierung)
+const colorCache = new Map<string, string>();
+
 export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
   const {
     queue,
@@ -58,6 +61,7 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
   const [dominantColor, setDominantColor] = useState<string>('142, 70%, 41%');
   const [isPulsing, setIsPulsing] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [karaokeVolume, setKaraokeVolume] = useState(0);
   const animationRef = useRef<number | null>(null);
   
   const handleDragEnd = (_event: any, info: PanInfo) => {
@@ -66,13 +70,21 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
     }
   };
 
-  // Extract dominant color from album artwork
+  // Extract dominant color from album artwork (mit Caching für Akku-Schonung)
   useEffect(() => {
     if (!currentTrack?.attributes.artwork) return;
 
     const extractColor = async () => {
       try {
         const artworkUrl = musicKit.getArtworkURL(currentTrack.attributes.artwork, 300);
+        
+        // Check cache first (spart CPU & Akku)
+        const cached = colorCache.get(currentTrack.id);
+        if (cached) {
+          setDominantColor(cached);
+          return;
+        }
+
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         img.src = artworkUrl;
@@ -103,7 +115,18 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
           b = Math.floor(b / pixelCount);
 
           const hsl = rgbToHsl(r, g, b);
-          setDominantColor(`${hsl.h}, ${hsl.s}%, ${hsl.l}%`);
+          const colorString = `${hsl.h}, ${hsl.s}%, ${hsl.l}%`;
+          
+          // Cache für zukünftige Verwendung (max 100 Einträge)
+          if (colorCache.size > 100) {
+            const firstKey = colorCache.keys().next().value;
+            if (firstKey) colorCache.delete(firstKey);
+          }
+          if (currentTrack?.id) {
+            colorCache.set(currentTrack.id, colorString);
+          }
+          
+          setDominantColor(colorString);
         };
       } catch (error) {
         console.warn('Color extraction failed:', error);
@@ -281,6 +304,22 @@ export function FullscreenPlayer({ onClose }: FullscreenPlayerProps) {
                     <Radio size={18} weight="bold" className="mr-2" />
                     Radio starten
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-3 py-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Karaoke-Modus</span>
+                      <span className="text-xs text-muted-foreground">{karaokeVolume}%</span>
+                    </div>
+                    <Slider
+                      value={[karaokeVolume]}
+                      onValueChange={(val) => setKaraokeVolume(val[0])}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-karaoke"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Vocal-Reduktion für Mitsingen</p>
+                  </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={async () => {

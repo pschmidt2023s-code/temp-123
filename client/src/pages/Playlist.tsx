@@ -96,7 +96,7 @@ export default function Playlist() {
             {playlistData?.attributes?.name || 'Rock Classics'}
           </h1>
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">{(playlistData as any)?.attributes?.curatorName || 'GlassBeats'}</span>
+            <span className="font-medium">{(playlistData as any)?.attributes?.curatorName || 'SoundVista'}</span>
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground" data-testid="text-playlist-info">
               {playlistTracks.length} Songs, {formatTotalDuration(totalDuration)}

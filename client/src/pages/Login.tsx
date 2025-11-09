@@ -168,7 +168,7 @@ export default function Login() {
           <CardDescription className="text-center">
             {loginStep === 'twoFactor' 
               ? 'Geben Sie Ihren 6-stelligen 2FA-Code ein'
-              : 'Melde dich mit deinem GlassBeats-Konto an'
+              : 'Melde dich mit deinem SoundVista-Konto an'
             }
           </CardDescription>
         </CardHeader>

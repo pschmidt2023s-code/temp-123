@@ -1,0 +1,41 @@
+{
+  "name": "SoundVista - Premium Music Streaming",
+  "short_name": "SoundVista",
+  "description": "100M Songs, Lossless Audio, Dolby Atmos, Timed Lyrics",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1DB954",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "shortcuts": [
+    {
+      "name": "Suche",
+      "short_name": "Suche",
+      "description": "Musik suchen",
+      "url": "/search",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bibliothek",
+      "short_name": "Bibliothek",
+      "description": "Meine Bibliothek",
+      "url": "/library",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

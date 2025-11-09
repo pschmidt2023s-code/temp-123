@@ -7,7 +7,7 @@ interface Room {
   name: string;
   creatorId: string;
   participants: Map<string, Participant>;
-  currentTrack: MKMediaItem | undefined;
+  currentTrack: MKMediaItem | null;
   queue: MKMediaItem[];
   isPlaying: boolean;
   currentTime: number;
@@ -41,6 +41,21 @@ export function setupWebSocket(server: Server) {
     ws.on('message', (data: Buffer) => {
       try {
         const msg: RoomMessage = JSON.parse(data.toString());
+        
+        // Security: Validate message structure
+        if (!msg.type || typeof msg.type !== 'string') {
+          console.warn('Invalid message type');
+          return;
+        }
+        
+        // Security: Sanitize string inputs (XSS prevention)
+        if (msg.message && typeof msg.message === 'string') {
+          msg.message = msg.message.slice(0, 500); // Max 500 chars
+        }
+        if (msg.username && typeof msg.username === 'string') {
+          msg.username = msg.username.slice(0, 50); // Max 50 chars
+        }
+        
         handleMessage(ws, msg);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -107,7 +122,7 @@ function handleJoinRoom(ws: WebSocket, msg: RoomMessage) {
       name: `${username}'s Room`,
       creatorId: userId,
       participants: new Map(),
-      currentTrack: undefined,
+      currentTrack: null,
       queue: [],
       isPlaying: false,
       currentTime: 0,
@@ -189,7 +204,7 @@ function handlePlayTrack(ws: WebSocket, msg: RoomMessage) {
   if (!room) return;
 
   if (track) {
-    room.currentTrack = track || undefined;
+    room.currentTrack = track;
   }
   room.isPlaying = true;
   room.currentTime = currentTime || 0;

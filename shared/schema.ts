@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   appleToken: text("apple_token"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  customTheme: text("custom_theme"), // JSON: { primary: "#1DB954", accent: "#1ED760", ... }
   createdAt: timestamp("created_at").defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
   twoFactorSecret: text("two_factor_secret"),
@@ -37,6 +38,32 @@ export const playlists = pgTable("playlists", {
   description: text("description"),
   coverUrl: text("cover_url"),
   isPublic: boolean("is_public").default(true),
+  isCollaborative: boolean("is_collaborative").default(false),
+  collaborators: text("collaborators").array(), // Array of user IDs
+  spotifyPlaylistId: text("spotify_playlist_id"),
+});
+
+export const tracks = pgTable("tracks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  artist: text("artist").notNull(),
+  album: text("album").notNull(),
+  duration: integer("duration").notNull(),
+  coverUrl: text("cover_url"),
+  previewUrl: text("preview_url"),
+  spotifyId: text("spotify_id").unique(),
+  spotifyUrl: text("spotify_url"),
+  youtubeVideoId: text("youtube_video_id"),
+  youtubeThumbnail: text("youtube_thumbnail"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const playlistTracks = pgTable("playlist_tracks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playlistId: varchar("playlist_id").references(() => playlists.id, { onDelete: 'cascade' }).notNull(),
+  trackId: varchar("track_id").references(() => tracks.id, { onDelete: 'cascade' }).notNull(),
+  position: integer("position").notNull().default(0),
+  addedAt: timestamp("added_at").defaultNow(),
 });
 
 export const subscriptions = pgTable("subscriptions", {
@@ -210,6 +237,29 @@ export const giftCards = pgTable("gift_cards", {
   isRedeemed: boolean("is_redeemed").default(false),
   expiresAt: timestamp("expires_at"),
   amount: integer("amount").notNull(), // in cents
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const customSubscriptionOffers = pgTable("custom_subscription_offers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(), // e.g., "Black Friday Deal"
+  description: text("description").notNull(), // e.g., "Premium für 6.99€/Monat statt 9.99€"
+  tier: text("tier").notNull(), // 'plus', 'premium', 'family'
+  discountedPrice: integer("discounted_price").notNull(), // in cents per month
+  durationMonths: integer("duration_months").notNull(), // z.B. 3, 6, 12 (wie lange der Rabatt gilt)
+  stripePriceIdMonthly: text("stripe_price_id_monthly"), // Stripe Price ID für monatliche Zahlung
+  stripePriceIdYearly: text("stripe_price_id_yearly"), // Stripe Price ID für jährliche Zahlung
+  paypalPlanIdMonthly: text("paypal_plan_id_monthly"), // PayPal Plan ID für monatliche Zahlung
+  paypalPlanIdYearly: text("paypal_plan_id_yearly"), // PayPal Plan ID für jährliche Zahlung
+  isActive: boolean("is_active").default(true),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  maxRedemptions: integer("max_redemptions"), // null = unbegrenzt
+  currentRedemptions: integer("current_redemptions").default(0),
+  createdBy: varchar("created_by").references(() => adminUsers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const streamingEvents = pgTable("streaming_events", {
@@ -393,13 +443,23 @@ export const sleepTimers = pgTable("sleep_timers", {
 export const referrals = pgTable("referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   referrerId: varchar("referrer_id").references(() => users.id).notNull(),
-  referredId: varchar("referred_id").references(() => users.id),
   referralCode: text("referral_code").notNull().unique(),
-  status: text("status").notNull().default('pending'), // 'pending', 'completed', 'expired'
+  status: text("status").notNull().default('active'), // 'active', 'maxed_out', 'expired'
   rewardType: text("reward_type").notNull(), // 'free_month', 'discount_percentage'
   rewardValue: integer("reward_value").notNull(),
+  maxRedemptions: integer("max_redemptions").notNull().default(5),
+  currentRedemptions: integer("current_redemptions").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
+});
+
+export const referralRedemptions = pgTable("referral_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referralId: varchar("referral_id").references(() => referrals.id).notNull(),
+  redeemedByUserId: varchar("redeemed_by_user_id").references(() => users.id).notNull(),
+  ipAddress: text("ip_address"),
+  deviceId: text("device_id"),
+  userAgent: text("user_agent"),
+  redeemedAt: timestamp("redeemed_at").defaultNow(),
 });
 
 export const studentDiscounts = pgTable("student_discounts", {
@@ -414,6 +474,49 @@ export const studentDiscounts = pgTable("student_discounts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Listening History for AI Personalization
+export const listeningHistory = pgTable("listening_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  trackId: text("track_id"), // Can be MusicKit ID, Spotify ID, or YouTube video ID
+  trackType: text("track_type").notNull(), // 'youtube', 'apple_music', 'spotify', 'local'
+  trackTitle: text("track_title").notNull(),
+  trackArtist: text("track_artist").notNull(),
+  trackGenre: text("track_genre"),
+  playedAt: timestamp("played_at").defaultNow(),
+  playDurationSeconds: integer("play_duration_seconds").notNull(), // How long the user listened
+  completedPercentage: integer("completed_percentage").notNull().default(0), // 0-100
+  skipped: boolean("skipped").default(false),
+  source: text("source").notNull(), // 'search', 'playlist', 'recommendation', 'new_releases', etc.
+});
+
+// Ad Tracking for Subscription-based Advertising
+export const adTracking = pgTable("ad_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  adType: text("ad_type").notNull(), // 'audio', 'video', 'banner'
+  tier: text("tier").notNull(), // Current user tier when ad was shown
+  adDurationSeconds: integer("ad_duration_seconds").notNull(),
+  shownAt: timestamp("shown_at").defaultNow(),
+  skipped: boolean("skipped").default(false),
+  completed: boolean("completed").default(false),
+});
+
+// User AI Preferences (learned from listening behavior)
+export const userAiPreferences = pgTable("user_ai_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  favoriteGenres: text("favorite_genres").array(), // Top genres based on listening
+  favoriteArtists: text("favorite_artists").array(), // Top artists
+  listeningPatterns: text("listening_patterns"), // JSON: { morningGenre: 'rock', eveningGenre: 'jazz', ... }
+  averageSessionDuration: integer("average_session_duration"), // In seconds
+  preferredTrackLength: integer("preferred_track_length"), // In seconds
+  skipRate: integer("skip_rate"), // Percentage 0-100
+  discoveryScore: integer("discovery_score"), // How open to new music (0-100)
+  lastAnalyzedAt: timestamp("last_analyzed_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -422,6 +525,16 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertPlaylistSchema = createInsertSchema(playlists).omit({
   id: true,
+});
+
+export const insertTrackSchema = createInsertSchema(tracks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlaylistTrackSchema = createInsertSchema(playlistTracks).omit({
+  id: true,
+  addedAt: true,
 });
 
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
@@ -507,6 +620,10 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
 export type Playlist = typeof playlists.$inferSelect;
+export type InsertTrack = z.infer<typeof insertTrackSchema>;
+export type Track = typeof tracks.$inferSelect;
+export type InsertPlaylistTrack = z.infer<typeof insertPlaylistTrackSchema>;
+export type PlaylistTrack = typeof playlistTracks.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
@@ -734,13 +851,34 @@ export type SleepTimer = typeof sleepTimers.$inferSelect;
 export type InsertSleepTimer = z.infer<typeof insertSleepTimerSchema>;
 
 // Monetization
-export const insertGiftCardSchema = createInsertSchema(giftCards).omit({ id: true, isRedeemed: true });
-export const insertReferralSchema = createInsertSchema(referrals).omit({ id: true, createdAt: true });
+export const insertGiftCardSchema = createInsertSchema(giftCards).omit({ id: true, purchasedAt: true, redeemedAt: true, isRedeemed: true });
+export const insertCustomOfferSchema = createInsertSchema(customSubscriptionOffers).omit({ id: true, createdAt: true, updatedAt: true, currentRedemptions: true });
+export const insertReferralSchema = createInsertSchema(referrals).omit({ id: true, createdAt: true, currentRedemptions: true });
+export const insertReferralRedemptionSchema = createInsertSchema(referralRedemptions).omit({ id: true, redeemedAt: true });
 export const insertStudentDiscountSchema = createInsertSchema(studentDiscounts).omit({ id: true, createdAt: true, isVerified: true });
 
 export type GiftCard = typeof giftCards.$inferSelect;
 export type InsertGiftCard = z.infer<typeof insertGiftCardSchema>;
+export type CustomSubscriptionOffer = typeof customSubscriptionOffers.$inferSelect;
+export type InsertCustomOffer = z.infer<typeof insertCustomOfferSchema>;
 export type Referral = typeof referrals.$inferSelect;
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type ReferralRedemption = typeof referralRedemptions.$inferSelect;
+export type InsertReferralRedemption = z.infer<typeof insertReferralRedemptionSchema>;
 export type StudentDiscount = typeof studentDiscounts.$inferSelect;
 export type InsertStudentDiscount = z.infer<typeof insertStudentDiscountSchema>;
+
+// Listening History
+export const insertListeningHistorySchema = createInsertSchema(listeningHistory).omit({ id: true, playedAt: true });
+export type ListeningHistory = typeof listeningHistory.$inferSelect;
+export type InsertListeningHistory = z.infer<typeof insertListeningHistorySchema>;
+
+// Ad Tracking
+export const insertAdTrackingSchema = createInsertSchema(adTracking).omit({ id: true, shownAt: true });
+export type AdTracking = typeof adTracking.$inferSelect;
+export type InsertAdTracking = z.infer<typeof insertAdTrackingSchema>;
+
+// User AI Preferences
+export const insertUserAiPreferencesSchema = createInsertSchema(userAiPreferences).omit({ id: true, lastAnalyzedAt: true, updatedAt: true });
+export type UserAiPreferences = typeof userAiPreferences.$inferSelect;
+export type InsertUserAiPreferences = z.infer<typeof insertUserAiPreferencesSchema>;

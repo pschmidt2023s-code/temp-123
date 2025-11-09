@@ -10,15 +10,21 @@ import {
   Queue,
   Quotes,
   Heart,
+  VideoCamera,
+  MusicNotes,
 } from '@phosphor-icons/react/dist/ssr';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useState, useEffect, memo, useRef } from 'react';
+import { useLocation } from 'wouter';
 import { musicKit } from '@/lib/musickit';
 import { useMKPlayback } from '@/hooks/useMKPlayback';
 import { useMediaSession } from '@/hooks/useMediaSession';
+import { useFreemium } from '@/hooks/useFreemium';
 import { LyricsOverlay } from './LyricsOverlay';
 import { FullscreenPlayer } from './FullscreenPlayer';
+import { AdOverlay } from './AdOverlay';
+import { PreviewLimitOverlay } from './PreviewLimitOverlay';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 
 function PlayerComponent() {
@@ -41,12 +47,29 @@ function PlayerComponent() {
     seek,
     setDuration,
     setCurrentTime,
+    currentVideoId,
+    setCurrentVideoId,
   } = usePlayer();
 
   const { seekToTime, skipToNext, skipToPrevious } = useMKPlayback();
+  const [, setLocation] = useLocation();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [showVideoMode, setShowVideoMode] = useState(false);
+  const [showAd, setShowAd] = useState(false);
+  const hasTrackedCurrentSong = useRef(false);
+  
+  // Freemium features
+  const {
+    tier,
+    shouldShowPreviewLimit,
+    shouldShowAd,
+    canSkipAd,
+    trackListeningTime,
+    markAdShown,
+    resetPreviewLimit,
+  } = useFreemium(currentTime, duration);
   
   // Enable Media Session API for iPhone Control Center
   useMediaSession();
@@ -59,6 +82,7 @@ function PlayerComponent() {
 
   const currentTrack = queue[currentIndex];
   const isDBRelease = currentTrack?.attributes?.url ? true : false;
+  const isYouTubeMode = !!currentVideoId;
 
   useEffect(() => {
     if (!audioRef.current || !isDBRelease || !currentTrack?.attributes?.url) return;
@@ -147,6 +171,34 @@ function PlayerComponent() {
   };
 
   const handleAudioEnded = () => {
+    // Track listening history before moving to next
+    if (currentTrack && !hasTrackedCurrentSong.current) {
+      const trackType = currentVideoId ? 'youtube' : 
+                        currentTrack.attributes.url ? 'local' : 'apple_music';
+      trackListeningTime(currentTrack.id, currentTime, trackType);
+      hasTrackedCurrentSong.current = true;
+    }
+
+    // Check if ad should be shown
+    if (shouldShowAd) {
+      setShowAd(true);
+      pause();
+      
+      // Track ad shown
+      fetch('/api/personalization/listening-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'demo-user',
+          tier,
+          adType: 'video',
+          adDurationSeconds: tier === 'free' ? 30 : 20,
+        }),
+      }).catch(err => console.warn('Failed to track ad:', err));
+      
+      return;
+    }
+
     if (repeat === 'one') {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
@@ -167,6 +219,22 @@ function PlayerComponent() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Stop playback at 30s for Free tier
+  useEffect(() => {
+    if (tier === 'free' && currentTime >= 30000 && isPlaying) {
+      pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    }
+  }, [tier, currentTime, isPlaying, pause]);
+
+  // Reset tracking flag and preview limit when song changes
+  useEffect(() => {
+    hasTrackedCurrentSong.current = false;
+    resetPreviewLimit();
+  }, [currentIndex, resetPreviewLimit]);
 
   useEffect(() => {
     if (!audioRef.current || !isDBRelease) return;
@@ -275,9 +343,37 @@ function PlayerComponent() {
           onClose={() => setShowLyrics(false)}
         />
       )}
+      
       <AnimatePresence>
         {showFullscreen && (
           <FullscreenPlayer onClose={() => setShowFullscreen(false)} />
+        )}
+        
+        {/* 30s Preview Limit for Free Tier */}
+        {shouldShowPreviewLimit && (
+          <PreviewLimitOverlay 
+            onUpgrade={() => {
+              pause();
+              setLocation('/pricing');
+            }}
+          />
+        )}
+        
+        {/* Ad Overlay */}
+        {showAd && (
+          <AdOverlay
+            tier={tier}
+            onAdComplete={() => {
+              markAdShown();
+              setShowAd(false);
+              next();
+            }}
+            onSkip={() => {
+              markAdShown();
+              setShowAd(false);
+              next();
+            }}
+          />
         )}
       </AnimatePresence>
       
@@ -456,6 +552,17 @@ function PlayerComponent() {
 
         {/* Right: Volume & Extra Controls - Hidden on mobile */}
         <div className="hidden md:flex items-center gap-2 justify-end min-w-[180px] w-[30%]">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowVideoMode(!showVideoMode)}
+            className={showVideoMode ? 'text-primary' : 'text-muted-foreground'}
+            data-testid="button-video-toggle"
+            title={showVideoMode ? 'Video-Modus' : 'Audio-Modus'}
+          >
+            {showVideoMode ? <VideoCamera size={20} weight="fill" /> : <MusicNotes size={20} weight="fill" />}
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"

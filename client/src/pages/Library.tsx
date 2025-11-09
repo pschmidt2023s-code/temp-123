@@ -1,35 +1,12 @@
 import { Card } from '@/components/Card';
-import { Button } from '@/components/ui/button';
-import { Plus } from '@phosphor-icons/react/dist/ssr';
 import { demoAlbums, demoPlaylists } from '@/lib/demo-data';
 import { useLocation } from 'wouter';
 import { usePlaylists } from '@/hooks/usePlaylists';
-import { useToast } from '@/hooks/use-toast';
 import { ResponsivePageHeader, ResponsiveSectionHeader } from '@/components/ResponsivePageHeader';
 
 export default function Library() {
   const [, setLocation] = useLocation();
-  const { playlists, isLoading, createPlaylist, isCreating } = usePlaylists();
-  const { toast } = useToast();
-
-  const handleCreatePlaylist = () => {
-    createPlaylist(
-      {
-        name: 'Neue Playlist',
-        description: 'Erstellt von GlassBeats',
-        coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
-        isPublic: true,
-      },
-      {
-        onSuccess: () => {
-          toast({
-            title: 'Playlist erstellt',
-            description: 'Deine neue Playlist wurde erfolgreich erstellt.',
-          });
-        },
-      }
-    );
-  };
+  const { playlists, isLoading } = usePlaylists();
 
   const userPlaylists = playlists.length > 0
     ? playlists.map(p => ({
@@ -53,17 +30,6 @@ export default function Library() {
         title="Deine Bibliothek" 
         testId="text-library-title"
         className="mb-8"
-        action={
-          <Button
-            onClick={handleCreatePlaylist}
-            disabled={isCreating}
-            className="bg-primary text-primary-foreground w-full md:w-auto"
-            data-testid="button-add-to-library"
-          >
-            <Plus size={20} weight="bold" className="mr-2" />
-            {isCreating ? 'Wird erstellt...' : 'Playlist erstellen'}
-          </Button>
-        }
       />
 
       {/* Playlists */}

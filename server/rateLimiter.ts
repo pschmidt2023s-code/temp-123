@@ -59,3 +59,14 @@ export const adminAuthLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Rate limiting for search API
+export const searchLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 60, // 60 searches per minute
+  message: {
+    error: 'Zu viele Suchanfragen. Bitte verlangsamen Sie.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

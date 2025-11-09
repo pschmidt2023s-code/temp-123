@@ -87,7 +87,7 @@ export default function Datenschutz() {
             <div className="space-y-3 text-muted-foreground">
               <p>Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:</p>
               <div className="bg-card p-4 rounded-lg border border-border">
-                <p className="font-medium text-foreground">GlassBeats GmbH</p>
+                <p className="font-medium text-foreground">SoundVista GmbH</p>
                 <p>Musikstraße 42</p>
                 <p>10115 Berlin</p>
                 <p className="mt-2">
@@ -98,8 +98,8 @@ export default function Datenschutz() {
                 </p>
                 <p>
                   E-Mail:{' '}
-                  <a href="mailto:datenschutz@glassbeats.de" className="text-primary hover:underline">
-                    datenschutz@glassbeats.de
+                  <a href="mailto:datenschutz@soundvista.de" className="text-primary hover:underline">
+                    datenschutz@soundvista.de
                   </a>
                 </p>
               </div>
@@ -392,8 +392,8 @@ export default function Datenschutz() {
               </ul>
               <p className="mt-4">
                 Zur Ausübung dieser Rechte wenden Sie sich bitte an:{' '}
-                <a href="mailto:datenschutz@glassbeats.de" className="text-primary hover:underline">
-                  datenschutz@glassbeats.de
+                <a href="mailto:datenschutz@soundvista.de" className="text-primary hover:underline">
+                  datenschutz@soundvista.de
                 </a>
               </p>
             </div>
@@ -426,8 +426,8 @@ export default function Datenschutz() {
               <p>Bei Fragen zum Datenschutz kontaktieren Sie uns gerne:</p>
               <p>
                 E-Mail:{' '}
-                <a href="mailto:datenschutz@glassbeats.de" className="text-primary hover:underline">
-                  datenschutz@glassbeats.de
+                <a href="mailto:datenschutz@soundvista.de" className="text-primary hover:underline">
+                  datenschutz@soundvista.de
                 </a>
               </p>
               <p>

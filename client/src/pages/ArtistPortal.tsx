@@ -262,7 +262,7 @@ function ReleasesTab({ releases, artistProfile, isLoading }: { releases: Release
               {releases.map((release) => (
                 <TableRow key={release.id}>
                   <TableCell className="font-medium">{release.title}</TableCell>
-                  <TableCell>{release.releaseType}</TableCell>
+                  <TableCell>{release.type}</TableCell>
                   <TableCell>
                     <Badge variant={
                       release.status === 'published' ? 'default' :
@@ -276,7 +276,7 @@ function ReleasesTab({ releases, artistProfile, isLoading }: { releases: Release
                        'In Prüfung'}
                     </Badge>
                   </TableCell>
-                  <TableCell>{release.createdAt ? format(new Date(release.createdAt), 'dd.MM.yyyy') : '-'}</TableCell>
+                  <TableCell>{format(new Date(release.uploadedAt!), 'dd.MM.yyyy')}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" data-testid={`button-view-${release.id}`}>
                       <Eye size={20} weight="bold" />

@@ -66,7 +66,7 @@ export default function Register() {
         <CardHeader>
           <CardTitle className="text-2xl text-center">Registrieren</CardTitle>
           <CardDescription className="text-center">
-            Erstelle dein GlassBeats-Konto
+            Erstelle dein SoundVista-Konto
           </CardDescription>
         </CardHeader>
         <CardContent>

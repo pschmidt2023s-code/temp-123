@@ -1,6 +1,8 @@
 import { 
   type User, type InsertUser, 
   type Playlist, type InsertPlaylist, 
+  type Track, type InsertTrack,
+  type PlaylistTrack, type InsertPlaylistTrack,
   type Subscription, type InsertSubscription,
   type AdminUser, type InsertAdminUser,
   type Release, type InsertRelease,
@@ -15,9 +17,12 @@ import {
   type StreamingEvent, type InsertStreamingEvent,
   type Coupon, type InsertCoupon,
   type CouponUsage, type InsertCouponUsage,
+  type CustomSubscriptionOffer, type InsertCustomOffer,
   type MusicQuiz, type InsertMusicQuiz,
   type OfflineDownload, type InsertOfflineDownload,
-  type Leaderboard, type InsertLeaderboard
+  type ListeningHistory, type InsertListeningHistory,
+  type AdTracking, type InsertAdTracking,
+  type UserAiPreferences, type InsertUserAiPreferences
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -63,9 +68,18 @@ export interface IStorage {
   
   getPlaylist(id: string): Promise<Playlist | undefined>;
   getPlaylistsByUser(userId: string): Promise<Playlist[]>;
+  getUserPlaylists(userId: string): Promise<Playlist[]>;
   createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
   updatePlaylist(id: string, data: Partial<Playlist>): Promise<Playlist | undefined>;
   deletePlaylist(id: string): Promise<boolean>;
+  
+  getTrack(id: string): Promise<Track | undefined>;
+  getTrackBySpotifyId(spotifyId: string): Promise<Track | undefined>;
+  createTrack(track: InsertTrack): Promise<Track>;
+  
+  getPlaylistTracks(playlistId: string): Promise<Track[]>;
+  addTrackToPlaylist(playlistTrack: InsertPlaylistTrack): Promise<PlaylistTrack>;
+  removeTrackFromPlaylist(playlistId: string, trackId: string): Promise<boolean>;
   
   getUserSubscription(userId: string): Promise<Subscription | undefined>;
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
@@ -165,11 +179,21 @@ export interface IStorage {
   redeemGiftCard(code: string, userId: string): Promise<any>;
   createGiftCard(giftCard: any): Promise<any>;
   getAllGiftCards(): Promise<any[]>;
+  getGiftCardBySession(sessionId: string): Promise<any | undefined>;
+  
+  // Custom Subscription Offers
+  getAllCustomOffers(): Promise<CustomSubscriptionOffer[]>;
+  getCustomOffer(id: string): Promise<CustomSubscriptionOffer | undefined>;
+  getActiveCustomOffers(): Promise<CustomSubscriptionOffer[]>;
+  createCustomOffer(offer: InsertCustomOffer): Promise<CustomSubscriptionOffer>;
+  updateCustomOffer(id: string, data: Partial<CustomSubscriptionOffer>): Promise<CustomSubscriptionOffer | undefined>;
+  deleteCustomOffer(id: string): Promise<boolean>;
+  incrementOfferRedemptions(id: string): Promise<boolean>;
   
   // Referrals
   getReferralsByUser(userId: string): Promise<any[]>;
   createReferral(referral: any): Promise<any>;
-  applyReferralCode(code: string, userId: string): Promise<any>;
+  applyReferralCode(code: string, userId: string, ipAddress?: string, deviceId?: string, userAgent?: string): Promise<any>;
   
   // User Stats (Enhanced)
   getTotalListeningTime(userId: string): Promise<number>;
@@ -219,9 +243,28 @@ export interface IStorage {
   createRadioStation(station: any): Promise<any>;
   deleteRadioStation(id: string): Promise<boolean>;
   updateRadioStationPlayCount(id: string): Promise<void>;
+
+  // ========== FREEMIUM MODEL & AI PERSONALIZATION ==========
+  // Listening History
+  recordListeningHistory(history: InsertListeningHistory): Promise<ListeningHistory>;
+  getUserListeningHistory(userId: string, limit?: number): Promise<ListeningHistory[]>;
+  getUserListeningHistoryByTimeRange(userId: string, startDate: Date, endDate: Date): Promise<ListeningHistory[]>;
+  
+  // Ad Tracking
+  recordAdView(ad: InsertAdTracking): Promise<AdTracking>;
+  getLastAdView(userId: string): Promise<AdTracking | undefined>;
+  getUserAdStats(userId: string): Promise<{ totalAds: number; totalDuration: number; lastAdAt: Date | null }>;
+  shouldShowAd(userId: string, tier: string): Promise<boolean>;
+  
+  // AI Preferences
+  getUserAiPreferences(userId: string): Promise<UserAiPreferences | undefined>;
+  createUserAiPreferences(prefs: InsertUserAiPreferences): Promise<UserAiPreferences>;
+  updateUserAiPreferences(userId: string, data: Partial<UserAiPreferences>): Promise<UserAiPreferences | undefined>;
+  analyzeUserBehavior(userId: string): Promise<UserAiPreferences>;
+  getPersonalizedRecommendations(userId: string, limit?: number): Promise<any[]>;
 }
 
-export class MemStorage {
+export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private playlists: Map<string, Playlist>;
   private subscriptions: Map<string, Subscription>;
@@ -239,6 +282,9 @@ export class MemStorage {
   private streamingEvents: Map<string, StreamingEvent>;
   private coupons: Map<string, Coupon>;
   private couponUsages: Map<string, CouponUsage>;
+  private listeningHistory: Map<string, ListeningHistory>;
+  private adTracking: Map<string, AdTracking>;
+  private userAiPreferences: Map<string, UserAiPreferences>;
 
   constructor() {
     this.users = new Map();
@@ -258,6 +304,9 @@ export class MemStorage {
     this.streamingEvents = new Map();
     this.coupons = new Map();
     this.couponUsages = new Map();
+    this.listeningHistory = new Map();
+    this.adTracking = new Map();
+    this.userAiPreferences = new Map();
   }
 
   async createAdminSession(token: string, username: string): Promise<void> {
@@ -452,12 +501,6 @@ export class MemStorage {
     const release: Release = {
       ...insertRelease,
       id,
-      audioFilePath: insertRelease.audioFilePath || null,
-      coverFilePath: insertRelease.coverFilePath || null,
-      preorderEnabled: insertRelease.preorderEnabled || false,
-      preorderDate: insertRelease.preorderDate || null,
-      previewEnabled: insertRelease.previewEnabled || false,
-      previewDurationSeconds: insertRelease.previewDurationSeconds || null,
       catalogId: insertRelease.catalogId || null,
       isrc: insertRelease.isrc || null,
       upc: insertRelease.upc || null,
@@ -564,9 +607,6 @@ export class MemStorage {
     const webauthnCred: WebAuthnCredential = {
       ...credential,
       id,
-      counter: credential.counter || 0,
-      deviceName: credential.deviceName || null,
-      transports: credential.transports || null,
       createdAt: new Date(),
       lastUsedAt: null,
     };
@@ -683,10 +723,12 @@ export class MemStorage {
 }
 
 import { db } from './db';
-import { eq, sql, desc, and, or, inArray } from 'drizzle-orm';
+import { eq, sql, desc, and, or, inArray, gte } from 'drizzle-orm';
 import {
   users,
   playlists,
+  tracks,
+  playlistTracks,
   subscriptions,
   adminUsers,
   releases,
@@ -706,15 +748,16 @@ import {
   alarms,
   sleepTimers,
   giftCards,
+  customSubscriptionOffers,
   referrals,
+  referralRedemptions,
   friends,
   friendActivity,
   musicQuizzes,
   quizScores,
   generatedPlaylists,
   offlineDownloads,
-  customRadioStations,
-  leaderboards
+  customRadioStations
 } from '@shared/schema';
 
 class DbStorage implements IStorage {
@@ -778,6 +821,51 @@ class DbStorage implements IStorage {
 
   async deletePlaylist(id: string): Promise<boolean> {
     const result = await db.delete(playlists).where(eq(playlists.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getUserPlaylists(userId: string): Promise<Playlist[]> {
+    return db.select().from(playlists).where(eq(playlists.userId, userId));
+  }
+
+  async getTrack(id: string): Promise<Track | undefined> {
+    const result = await db.select().from(tracks).where(eq(tracks.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getTrackBySpotifyId(spotifyId: string): Promise<Track | undefined> {
+    const result = await db.select().from(tracks).where(eq(tracks.spotifyId, spotifyId)).limit(1);
+    return result[0];
+  }
+
+  async createTrack(track: InsertTrack): Promise<Track> {
+    const result = await db.insert(tracks).values(track).returning();
+    return result[0];
+  }
+
+  async getPlaylistTracks(playlistId: string): Promise<Track[]> {
+    const result = await db
+      .select({ track: tracks })
+      .from(playlistTracks)
+      .innerJoin(tracks, eq(playlistTracks.trackId, tracks.id))
+      .where(eq(playlistTracks.playlistId, playlistId))
+      .orderBy(playlistTracks.position);
+    
+    return result.map(r => r.track);
+  }
+
+  async addTrackToPlaylist(playlistTrack: InsertPlaylistTrack): Promise<PlaylistTrack> {
+    const result = await db.insert(playlistTracks).values(playlistTrack).returning();
+    return result[0];
+  }
+
+  async removeTrackFromPlaylist(playlistId: string, trackId: string): Promise<boolean> {
+    const result = await db
+      .delete(playlistTracks)
+      .where(and(
+        eq(playlistTracks.playlistId, playlistId),
+        eq(playlistTracks.trackId, trackId)
+      ));
     return result.rowCount > 0;
   }
 
@@ -964,11 +1052,11 @@ class DbStorage implements IStorage {
       ))
       .limit(1);
 
-    if (existing.length > 0 && existing[0]) {
+    if (existing[0]) {
       await db.update(userStats)
         .set({
-          playCount: (existing[0].playCount || 0) + 1,
-          totalMinutes: (existing[0].totalMinutes || 0) + durationMinutes,
+          playCount: existing[0].playCount + 1,
+          totalMinutes: existing[0].totalMinutes + durationMinutes,
           lastPlayedAt: new Date()
         })
         .where(eq(userStats.id, existing[0].id));
@@ -995,8 +1083,8 @@ class DbStorage implements IStorage {
   }
 
   async markAchievementShared(achievementId: string): Promise<boolean> {
-    // isShared field doesn't exist in schema, skip this operation
-    return true;
+    const result = await db.update(achievements).set({ isShared: true }).where(eq(achievements.id, achievementId));
+    return result.rowCount > 0;
   }
 
   // Artist Profiles
@@ -1155,7 +1243,7 @@ class DbStorage implements IStorage {
       return { valid: false, error: 'Gutschein ist abgelaufen' };
     }
 
-    if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) {
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
       return { valid: false, error: 'Gutschein wurde bereits vollständig eingelöst' };
     }
 
@@ -1322,7 +1410,67 @@ class DbStorage implements IStorage {
   }
 
   async getAllGiftCards(): Promise<any[]> {
-    return db.select().from(giftCards).orderBy(desc(giftCards.purchasedAt));
+    return db.select().from(giftCards).orderBy(desc(giftCards.createdAt));
+  }
+
+  async getGiftCardBySession(sessionId: string): Promise<any | undefined> {
+    const result = await db.select().from(giftCards)
+      .where(eq(giftCards.stripeCheckoutSessionId, sessionId))
+      .limit(1);
+    return result[0];
+  }
+
+  // Custom Subscription Offers
+  async getAllCustomOffers(): Promise<CustomSubscriptionOffer[]> {
+    return db.select().from(customSubscriptionOffers).orderBy(desc(customSubscriptionOffers.createdAt));
+  }
+
+  async getCustomOffer(id: string): Promise<CustomSubscriptionOffer | undefined> {
+    const result = await db.select().from(customSubscriptionOffers)
+      .where(eq(customSubscriptionOffers.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getActiveCustomOffers(): Promise<CustomSubscriptionOffer[]> {
+    const now = new Date();
+    return db.select().from(customSubscriptionOffers)
+      .where(
+        and(
+          eq(customSubscriptionOffers.isActive, true),
+          or(
+            eq(customSubscriptionOffers.validUntil, null),
+            gte(customSubscriptionOffers.validUntil, now)
+          )
+        )
+      )
+      .orderBy(desc(customSubscriptionOffers.createdAt));
+  }
+
+  async createCustomOffer(offer: InsertCustomOffer): Promise<CustomSubscriptionOffer> {
+    const result = await db.insert(customSubscriptionOffers).values(offer).returning();
+    return result[0];
+  }
+
+  async updateCustomOffer(id: string, data: Partial<CustomSubscriptionOffer>): Promise<CustomSubscriptionOffer | undefined> {
+    const result = await db.update(customSubscriptionOffers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customSubscriptionOffers.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCustomOffer(id: string): Promise<boolean> {
+    const result = await db.delete(customSubscriptionOffers)
+      .where(eq(customSubscriptionOffers.id, id));
+    return true;
+  }
+
+  async incrementOfferRedemptions(id: string): Promise<boolean> {
+    await db.update(customSubscriptionOffers)
+      .set({ currentRedemptions: sql`${customSubscriptionOffers.currentRedemptions} + 1` })
+      .where(eq(customSubscriptionOffers.id, id));
+    return true;
   }
 
   // Referrals
@@ -1335,7 +1483,7 @@ class DbStorage implements IStorage {
     return result[0];
   }
 
-  async applyReferralCode(code: string, userId: string): Promise<any> {
+  async applyReferralCode(code: string, userId: string, ipAddress?: string, deviceId?: string, userAgent?: string): Promise<any> {
     const referral = await db.select().from(referrals)
       .where(eq(referrals.referralCode, code))
       .limit(1);
@@ -1344,18 +1492,102 @@ class DbStorage implements IStorage {
       throw new Error('Empfehlungscode nicht gefunden');
     }
     
-    if (referral[0].status !== 'pending') {
-      throw new Error('Empfehlungscode wurde bereits verwendet');
+    if (referral[0].status === 'maxed_out') {
+      throw new Error('Dieser Code wurde bereits zu oft eingelöst');
+    }
+    
+    if (referral[0].status === 'expired') {
+      throw new Error('Dieser Code ist abgelaufen');
     }
     
     if (referral[0].referrerId === userId) {
       throw new Error('Du kannst deinen eigenen Code nicht verwenden');
     }
 
+    // Check if user already redeemed this code
+    const existingRedemption = await db.select().from(referralRedemptions)
+      .where(and(
+        eq(referralRedemptions.referralId, referral[0].id),
+        eq(referralRedemptions.redeemedByUserId, userId)
+      ))
+      .limit(1);
+    
+    if (existingRedemption[0]) {
+      throw new Error('Du hast diesen Code bereits eingelöst');
+    }
+
+    // AI-BASED FRAUD DETECTION
+    const { FraudDetectionAI } = await import('./fraud-detection');
+    
+    const historicalRedemptions = await db.select().from(referralRedemptions)
+      .where(eq(referralRedemptions.referralId, referral[0].id));
+
+    const fraudAnalysis = FraudDetectionAI.analyzeFraudRisk(
+      {
+        userId,
+        ipAddress: ipAddress || 'unknown',
+        deviceId: deviceId || 'unknown',
+        userAgent: userAgent || 'unknown',
+        timestamp: new Date(),
+      },
+      historicalRedemptions,
+      referral[0].referrerId
+    );
+
+    console.log('[FRAUD-AI] Analysis:', FraudDetectionAI.generateFraudReport(fraudAnalysis));
+
+    // Blockiere bei kritischem Risiko
+    if (fraudAnalysis.recommendation === 'block') {
+      throw new Error(`Sicherheitsprüfung fehlgeschlagen: ${fraudAnalysis.flags.join(', ')}`);
+    }
+
+    // Warne bei hohem Risiko (aber erlaube trotzdem)
+    if (fraudAnalysis.riskLevel === 'high' || fraudAnalysis.riskLevel === 'critical') {
+      console.warn('[FRAUD-AI] HIGH RISK REDEMPTION:', {
+        userId,
+        code,
+        fraudScore: fraudAnalysis.fraudScore,
+        flags: fraudAnalysis.flags,
+      });
+    }
+
+    // Legacy fraud prevention: Check for exact IP and Device ID matches
+    if (ipAddress || deviceId) {
+      const suspiciousRedemptions = await db.select().from(referralRedemptions)
+        .where(eq(referralRedemptions.referralId, referral[0].id))
+        .limit(10);
+      
+      for (const redemption of suspiciousRedemptions) {
+        if (ipAddress && ipAddress !== 'unknown' && redemption.ipAddress === ipAddress) {
+          throw new Error('Verdächtige Aktivität erkannt. Diese IP-Adresse wurde bereits verwendet');
+        }
+        if (deviceId && deviceId !== 'unknown' && redemption.deviceId === deviceId) {
+          throw new Error('Verdächtige Aktivität erkannt. Dieses Gerät wurde bereits verwendet');
+        }
+      }
+    }
+
+    // Check if max redemptions reached
+    if (referral[0].currentRedemptions >= referral[0].maxRedemptions) {
+      await db.update(referrals).set({
+        status: 'maxed_out'
+      }).where(eq(referrals.id, referral[0].id));
+      throw new Error('Dieser Code wurde bereits zu oft eingelöst');
+    }
+
+    // Record the redemption
+    await db.insert(referralRedemptions).values({
+      referralId: referral[0].id,
+      redeemedByUserId: userId,
+      ipAddress,
+      deviceId,
+      userAgent
+    });
+
+    // Update redemption count
     await db.update(referrals).set({
-      referredId: userId,
-      status: 'completed',
-      completedAt: new Date()
+      currentRedemptions: sql`${referrals.currentRedemptions} + 1`,
+      status: referral[0].currentRedemptions + 1 >= referral[0].maxRedemptions ? 'maxed_out' : 'active'
     }).where(eq(referrals.id, referral[0].id));
 
     const subscription = await this.getUserSubscription(userId);
@@ -1370,12 +1602,13 @@ class DbStorage implements IStorage {
 
     if (subscription) {
       await this.updateSubscription(subscription.id, {
+        tier: 'plus',
         endDate: newEndDate
       });
     } else {
       await this.createSubscription({
         userId,
-        tier: 'premium',
+        tier: 'plus',
         status: 'active',
         endDate: newEndDate,
         autoRenew: false
@@ -1387,13 +1620,14 @@ class DbStorage implements IStorage {
       const referrerEndDate = new Date(referrerSub.endDate || new Date());
       referrerEndDate.setMonth(referrerEndDate.getMonth() + 1);
       await this.updateSubscription(referrerSub.id, {
+        tier: 'plus',
         endDate: referrerEndDate
       });
     }
 
     return {
       success: true,
-      reward: `${referral[0].rewardValue} Monat${referral[0].rewardValue > 1 ? 'e' : ''} gratis`,
+      reward: `${referral[0].rewardValue} Monat${referral[0].rewardValue > 1 ? 'e' : ''} Plus gratis`,
       expiresAt: newEndDate
     };
   }
@@ -1930,6 +2164,215 @@ class DbStorage implements IStorage {
         lastPlayedAt: new Date()
       })
       .where(eq(customRadioStations.id, id));
+  }
+
+  // ========== FREEMIUM MODEL & AI PERSONALIZATION ==========
+  
+  // Listening History
+  async recordListeningHistory(history: InsertListeningHistory): Promise<ListeningHistory> {
+    const id = randomUUID();
+    const newHistory: ListeningHistory = {
+      id,
+      playedAt: new Date(),
+      ...history,
+    };
+    this.listeningHistory.set(id, newHistory);
+    return newHistory;
+  }
+
+  async getUserListeningHistory(userId: string, limit: number = 100): Promise<ListeningHistory[]> {
+    return Array.from(this.listeningHistory.values())
+      .filter(h => h.userId === userId)
+      .sort((a, b) => (b.playedAt?.getTime() || 0) - (a.playedAt?.getTime() || 0))
+      .slice(0, limit);
+  }
+
+  async getUserListeningHistoryByTimeRange(userId: string, startDate: Date, endDate: Date): Promise<ListeningHistory[]> {
+    return Array.from(this.listeningHistory.values())
+      .filter(h => 
+        h.userId === userId && 
+        h.playedAt && 
+        h.playedAt >= startDate && 
+        h.playedAt <= endDate
+      )
+      .sort((a, b) => (b.playedAt?.getTime() || 0) - (a.playedAt?.getTime() || 0));
+  }
+
+  // Ad Tracking
+  async recordAdView(ad: InsertAdTracking): Promise<AdTracking> {
+    const id = randomUUID();
+    const newAd: AdTracking = {
+      id,
+      shownAt: new Date(),
+      ...ad,
+    };
+    this.adTracking.set(id, newAd);
+    return newAd;
+  }
+
+  async getLastAdView(userId: string): Promise<AdTracking | undefined> {
+    const userAds = Array.from(this.adTracking.values())
+      .filter(ad => ad.userId === userId)
+      .sort((a, b) => (b.shownAt?.getTime() || 0) - (a.shownAt?.getTime() || 0));
+    return userAds[0];
+  }
+
+  async getUserAdStats(userId: string): Promise<{ totalAds: number; totalDuration: number; lastAdAt: Date | null }> {
+    const userAds = Array.from(this.adTracking.values())
+      .filter(ad => ad.userId === userId);
+    
+    return {
+      totalAds: userAds.length,
+      totalDuration: userAds.reduce((sum, ad) => sum + ad.adDurationSeconds, 0),
+      lastAdAt: userAds.length > 0 
+        ? userAds.sort((a, b) => (b.shownAt?.getTime() || 0) - (a.shownAt?.getTime() || 0))[0].shownAt || null
+        : null
+    };
+  }
+
+  async shouldShowAd(userId: string, tier: string): Promise<boolean> {
+    // Premium and Family tiers: no ads
+    if (tier === 'premium' || tier === 'family') {
+      return false;
+    }
+    
+    // Free tier: always show ads
+    if (tier === 'free') {
+      return true;
+    }
+    
+    // Plus tier: show ads every 5 hours
+    if (tier === 'plus') {
+      const lastAd = await this.getLastAdView(userId);
+      if (!lastAd || !lastAd.shownAt) {
+        return true;
+      }
+      
+      const fiveHoursInMs = 5 * 60 * 60 * 1000;
+      const timeSinceLastAd = Date.now() - lastAd.shownAt.getTime();
+      return timeSinceLastAd >= fiveHoursInMs;
+    }
+    
+    return false;
+  }
+
+  // AI Preferences
+  async getUserAiPreferences(userId: string): Promise<UserAiPreferences | undefined> {
+    return Array.from(this.userAiPreferences.values())
+      .find(p => p.userId === userId);
+  }
+
+  async createUserAiPreferences(prefs: InsertUserAiPreferences): Promise<UserAiPreferences> {
+    const id = randomUUID();
+    const newPrefs: UserAiPreferences = {
+      id,
+      lastAnalyzedAt: new Date(),
+      updatedAt: new Date(),
+      ...prefs,
+    };
+    this.userAiPreferences.set(id, newPrefs);
+    return newPrefs;
+  }
+
+  async updateUserAiPreferences(userId: string, data: Partial<UserAiPreferences>): Promise<UserAiPreferences | undefined> {
+    const existing = await this.getUserAiPreferences(userId);
+    if (!existing) return undefined;
+    
+    const updated: UserAiPreferences = {
+      ...existing,
+      ...data,
+      updatedAt: new Date(),
+    };
+    this.userAiPreferences.set(existing.id, updated);
+    return updated;
+  }
+
+  async analyzeUserBehavior(userId: string): Promise<UserAiPreferences> {
+    // Get user's listening history from last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const history = await this.getUserListeningHistoryByTimeRange(userId, thirtyDaysAgo, new Date());
+    
+    // Analyze genres
+    const genreCounts = new Map<string, number>();
+    const artistCounts = new Map<string, number>();
+    let totalDuration = 0;
+    let totalSkips = 0;
+    let totalCompletions = 0;
+    const trackLengths: number[] = [];
+    
+    for (const item of history) {
+      if (item.trackGenre) {
+        genreCounts.set(item.trackGenre, (genreCounts.get(item.trackGenre) || 0) + 1);
+      }
+      artistCounts.set(item.trackArtist, (artistCounts.get(item.trackArtist) || 0) + 1);
+      totalDuration += item.playDurationSeconds;
+      if (item.skipped) totalSkips++;
+      if (item.completedPercentage >= 90) totalCompletions++;
+      trackLengths.push(item.playDurationSeconds);
+    }
+    
+    // Calculate top genres and artists
+    const favoriteGenres = Array.from(genreCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([genre]) => genre);
+      
+    const favoriteArtists = Array.from(artistCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([artist]) => artist);
+    
+    // Calculate averages
+    const averageSessionDuration = history.length > 0 ? Math.floor(totalDuration / history.length) : 0;
+    const preferredTrackLength = trackLengths.length > 0 
+      ? Math.floor(trackLengths.reduce((a, b) => a + b, 0) / trackLengths.length)
+      : 200; // Default 3:20
+    const skipRate = history.length > 0 ? Math.floor((totalSkips / history.length) * 100) : 0;
+    const discoveryScore = history.length > 0 
+      ? Math.min(100, Math.floor((genreCounts.size / history.length) * 100 * 5)) // More genres = higher discovery
+      : 50;
+    
+    // Create or update preferences
+    const existing = await this.getUserAiPreferences(userId);
+    
+    const prefsData: InsertUserAiPreferences = {
+      userId,
+      favoriteGenres,
+      favoriteArtists,
+      listeningPatterns: JSON.stringify({
+        topGenre: favoriteGenres[0] || 'unknown',
+        listeningSessions: history.length,
+        totalMinutes: Math.floor(totalDuration / 60)
+      }),
+      averageSessionDuration,
+      preferredTrackLength,
+      skipRate,
+      discoveryScore,
+    };
+    
+    if (existing) {
+      return await this.updateUserAiPreferences(userId, prefsData) || existing;
+    } else {
+      return await this.createUserAiPreferences(prefsData);
+    }
+  }
+
+  async getPersonalizedRecommendations(userId: string, limit: number = 20): Promise<any[]> {
+    const prefs = await this.getUserAiPreferences(userId);
+    if (!prefs || !prefs.favoriteGenres || prefs.favoriteGenres.length === 0) {
+      // Return empty or general recommendations
+      return [];
+    }
+    
+    // This would typically query YouTube or Apple Music based on user preferences
+    // For now, return a placeholder that indicates the preferred genres
+    return prefs.favoriteGenres.slice(0, limit).map(genre => ({
+      type: 'genre_recommendation',
+      genre,
+      source: 'ai_personalization'
+    }));
   }
 }
 
